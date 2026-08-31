@@ -54,6 +54,10 @@ Supported services:
   ske`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+		setupLogger(verbosity)
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if showVer {
 			fmt.Println(Version)
@@ -74,6 +78,7 @@ func init() {
 }
 
 func Execute() error {
+	setupLogger("info")
 	return rootCmd.Execute()
 }
 
@@ -130,22 +135,22 @@ func runACLAction(args []string, act action) error {
 	cfg, _ := services.GetByName(service)
 	client := stackit.New(projectID, region)
 
-	outStep("Fetching your external IP...")
+	logStep("Fetching your external IP...")
 	externalIP, err := ip.Fetch()
 	if err != nil {
 		return err
 	}
-	outInfo(fmt.Sprintf("Your external IP: %s", externalIP))
+	logInfo(fmt.Sprintf("Your external IP: %s", externalIP))
 
 	cidrNotation := acl.ToCIDR(externalIP, cidr)
-	outInfo(fmt.Sprintf("Using CIDR: %s", cidrNotation))
+	logInfo(fmt.Sprintf("Using CIDR: %s", cidrNotation))
 
 	var jsonData []byte
 	if cfg.UpdateStrategy == services.PayloadStrategy {
-		outStep(fmt.Sprintf("Generating payload for %s %q...", service, resourceID))
+		logStep(fmt.Sprintf("Generating payload for %s %q...", service, resourceID))
 		jsonData, err = client.GeneratePayload(cfg, resourceID)
 	} else {
-		outStep(fmt.Sprintf("Fetching current ACLs for %s %q...", service, resourceID))
+		logStep(fmt.Sprintf("Fetching current ACLs for %s %q...", service, resourceID))
 		jsonData, err = client.DescribeInstance(cfg, resourceID)
 	}
 	if err != nil {
@@ -168,20 +173,20 @@ func runACLAction(args []string, act action) error {
 	if act == actionAdd {
 		preposition = "to"
 		if present {
-			outWarn(fmt.Sprintf("IP %s is already in the ACL list. No changes needed.", cidrNotation))
+			logWarn(fmt.Sprintf("IP %s is already in the ACL list. No changes needed.", cidrNotation))
 			return nil
 		}
 		updatedACLs = acl.AppendCIDR(currentACLs, cidrNotation)
 	} else {
 		preposition = "from"
 		if !present {
-			outWarn(fmt.Sprintf("IP %s is not in the ACL list. Nothing to remove.", cidrNotation))
+			logWarn(fmt.Sprintf("IP %s is not in the ACL list. Nothing to remove.", cidrNotation))
 			return nil
 		}
 		updatedACLs = acl.RemoveCIDR(currentACLs, cidrNotation)
 	}
 
-	outInfo("Updated ACLs:")
+	logInfo("Updated ACLs:")
 	displayACLs := updatedACLs
 	if act == actionRemove {
 		displayACLs = currentACLs
@@ -191,12 +196,12 @@ func runACLAction(args []string, act action) error {
 	if !assumeYes {
 		prompt := fmt.Sprintf("Are you sure you want to %s %s %s the ACL of %s %s? (y/N)", act, cidrNotation, preposition, service, resourceLabel)
 		if !confirmPrompt(prompt) {
-			outWarn("Aborted.")
+			logWarn("Aborted.")
 			return nil
 		}
 	}
 
-	outStep(fmt.Sprintf("Updating ACLs for %s %s...", service, resourceLabel))
+	logStep(fmt.Sprintf("Updating ACLs for %s %s...", service, resourceLabel))
 	if cfg.UpdateStrategy == services.PayloadStrategy {
 		updatedPayload, err := acl.SetACLs(jsonData, cfg, updatedACLs)
 		if err != nil {
@@ -211,15 +216,8 @@ func runACLAction(args []string, act action) error {
 		}
 	}
 
-	outSuccess(fmt.Sprintf("Successfully %sed %s %s the ACL of %s %s.", act, cidrNotation, preposition, service, resourceLabel))
+	logSuccess(fmt.Sprintf("Successfully %sed %s %s the ACL of %s %s.", act, cidrNotation, preposition, service, resourceLabel))
 	return nil
-}
-
-var verbosityLevels = map[string]int{
-	"error":   0,
-	"warning": 1,
-	"info":    2,
-	"debug":   3,
 }
 
 func confirmPrompt(prompt string) bool {

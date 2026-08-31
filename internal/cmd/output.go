@@ -1,10 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
+	"log/slog"
 )
 
 var (
@@ -18,55 +22,97 @@ var (
 	colorRemoved = color.New(color.FgRed)
 )
 
-func shouldLog(msgLevel string) bool {
-	cl, ok := verbosityLevels[verbosity]
-	if !ok {
-		cl = 2
-	}
-	ml, ok := verbosityLevels[msgLevel]
-	if !ok {
-		ml = 2
-	}
-	return ml <= cl
+type cliHandler struct {
+	level slog.Level
+	mu    *sync.Mutex
 }
 
-func outStep(msg string) {
-	outStepLevel("info", msg)
+func newCLIHandler(level slog.Level) *cliHandler {
+	return &cliHandler{level: level, mu: &sync.Mutex{}}
 }
 
-func outStepLevel(level, msg string) {
-	if !shouldLog(level) {
-		return
-	}
-	colorStep.Println("→ " + msg)
+func (h *cliHandler) Enabled(_ context.Context, level slog.Level) bool {
+	return level >= h.level
 }
 
-func outInfo(msg string) {
-	if !shouldLog("info") {
-		return
+func (h *cliHandler) Handle(_ context.Context, r slog.Record) error {
+	kind := "info"
+	r.Attrs(func(a slog.Attr) bool {
+		if a.Key == "kind" {
+			kind = a.Value.String()
+		}
+		return true
+	})
+
+	var prefix string
+	var c *color.Color
+
+	switch kind {
+	case "step":
+		prefix = "→ "
+		c = colorStep
+	case "success":
+		prefix = "✓ "
+		c = colorSuccess
+	case "warn":
+		prefix = "⚠ "
+		c = colorWarn
+	case "error":
+		prefix = "✗ "
+		c = colorError
+	default:
+		c = colorInfo
 	}
-	colorInfo.Println(msg)
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if r.Level >= slog.LevelError {
+		c.Fprintf(os.Stderr, "%s%s\n", prefix, r.Message)
+	} else {
+		c.Fprintf(os.Stdout, "%s%s\n", prefix, r.Message)
+	}
+
+	return nil
 }
 
-func outSuccess(msg string) {
-	if !shouldLog("info") {
-		return
-	}
-	colorSuccess.Println("✓ " + msg)
+func (h *cliHandler) WithAttrs(_ []slog.Attr) slog.Handler {
+	return h
 }
 
-func outWarn(msg string) {
-	if !shouldLog("warning") {
-		return
-	}
-	colorWarn.Println("⚠ " + msg)
+func (h *cliHandler) WithGroup(_ string) slog.Handler {
+	return h
 }
 
-func outError(msg string) {
-	if !shouldLog("error") {
-		return
+func setupLogger(v string) {
+	level := slog.LevelInfo
+	switch v {
+	case "error":
+		level = slog.LevelError
+	case "warning":
+		level = slog.LevelWarn
+	case "info":
+		level = slog.LevelInfo
+	case "debug":
+		level = slog.LevelDebug
 	}
-	colorError.Println("✗ " + msg)
+	slog.SetDefault(slog.New(newCLIHandler(level)))
+}
+
+func logStep(msg string, args ...any) {
+	slog.Info(msg, append([]any{"kind", "step"}, args...)...)
+}
+
+func logInfo(msg string, args ...any) {
+	slog.Info(msg, args...)
+}
+
+func logSuccess(msg string, args ...any) {
+	slog.Info(msg, append([]any{"kind", "success"}, args...)...)
+}
+
+func logWarn(msg string, args ...any) {
+	slog.Warn(msg, append([]any{"kind", "warn"}, args...)...)
 }
 
 func outPrompt(msg string) {
