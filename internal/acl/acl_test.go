@@ -63,6 +63,84 @@ func TestAppendCIDR_NilList(t *testing.T) {
 	}
 }
 
+func TestContains_True(t *testing.T) {
+	list := []string{"1.2.3.0/24", "9.10.11.12/32"}
+	if !Contains(list, "9.10.11.12/32") {
+		t.Error("expected Contains to return true")
+	}
+}
+
+func TestContains_False(t *testing.T) {
+	list := []string{"1.2.3.0/24", "5.6.7.0/24"}
+	if Contains(list, "9.10.11.12/32") {
+		t.Error("expected Contains to return false")
+	}
+}
+
+func TestContains_EmptyList(t *testing.T) {
+	if Contains([]string{}, "9.10.11.12/32") {
+		t.Error("expected Contains to return false for empty list")
+	}
+}
+
+func TestContains_NilList(t *testing.T) {
+	if Contains(nil, "9.10.11.12/32") {
+		t.Error("expected Contains to return false for nil list")
+	}
+}
+
+func TestRemoveCIDR_Existing(t *testing.T) {
+	existing := []string{"1.2.3.0/24", "9.10.11.12/32", "5.6.7.0/24"}
+	result := RemoveCIDR(existing, "9.10.11.12/32")
+	if len(result) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(result))
+	}
+	if result[0] != "1.2.3.0/24" || result[1] != "5.6.7.0/24" {
+		t.Errorf("unexpected result: %v", result)
+	}
+}
+
+func TestRemoveCIDR_NotPresent(t *testing.T) {
+	existing := []string{"1.2.3.0/24", "5.6.7.0/24"}
+	result := RemoveCIDR(existing, "9.10.11.12/32")
+	if len(result) != 2 {
+		t.Fatalf("expected 2 entries (unchanged), got %d", len(result))
+	}
+}
+
+func TestRemoveCIDR_EmptyList(t *testing.T) {
+	result := RemoveCIDR([]string{}, "9.10.11.12/32")
+	if len(result) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(result))
+	}
+}
+
+func TestRemoveCIDR_NilList(t *testing.T) {
+	result := RemoveCIDR(nil, "9.10.11.12/32")
+	if len(result) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(result))
+	}
+}
+
+func TestRemoveCIDR_LastEntry(t *testing.T) {
+	existing := []string{"9.10.11.12/32"}
+	result := RemoveCIDR(existing, "9.10.11.12/32")
+	if len(result) != 0 {
+		t.Fatalf("expected 0 entries, got %d", len(result))
+	}
+}
+
+func TestRemoveCIDR_MultipleDuplicates(t *testing.T) {
+	existing := []string{"9.10.11.12/32", "1.2.3.0/24", "9.10.11.12/32"}
+	result := RemoveCIDR(existing, "9.10.11.12/32")
+	if len(result) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(result))
+	}
+	if result[0] != "1.2.3.0/24" {
+		t.Errorf("expected 1.2.3.0/24, got %s", result[0])
+	}
+}
+
 func TestExtractACLs_ArrayType(t *testing.T) {
 	cfg := services.ServiceConfig{
 		ACLJSONPath: "acl.items",

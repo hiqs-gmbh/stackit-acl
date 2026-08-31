@@ -12,13 +12,30 @@ func ToCIDR(ip string, prefix int) string {
 	return fmt.Sprintf("%s/%d", ip, prefix)
 }
 
-func AppendCIDR(existing []string, cidr string) []string {
-	for _, c := range existing {
+func Contains(list []string, cidr string) bool {
+	for _, c := range list {
 		if c == cidr {
-			return existing
+			return true
 		}
 	}
+	return false
+}
+
+func AppendCIDR(existing []string, cidr string) []string {
+	if Contains(existing, cidr) {
+		return existing
+	}
 	return append(existing, cidr)
+}
+
+func RemoveCIDR(existing []string, cidr string) []string {
+	result := make([]string, 0, len(existing))
+	for _, c := range existing {
+		if c != cidr {
+			result = append(result, c)
+		}
+	}
+	return result
 }
 
 func ExtractACLs(jsonData []byte, cfg services.ServiceConfig) ([]string, error) {

@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 var (
 	projectID string
@@ -26,17 +26,21 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "stackit-acl <service> <resource-group> <resource-id>",
-	Short: "Automatically adds your external IP to STACKIT service ACLs",
-	Long: `Automatically adds your external IP to STACKIT service ACLs.
+	Use:   "stackit-acl",
+	Short: "Automatically manages your external IP in STACKIT service ACLs",
+	Long: `Automatically manages your external IP in STACKIT service ACLs.
 
-This tool fetches your external IP address and appends it to the ACL list
-of the specified STACKIT service instance or cluster.
+This tool fetches your external IP address and adds or removes it from the
+ACL list of the specified STACKIT service instance or cluster.
 
 The stackit CLI must be installed and authenticated.
 
 Usage:
-  stackit-acl <service> <resource-group> <resource-id> [flags]
+  stackit-acl <command> <service> <resource-group> <resource-id> [flags]
+
+Commands:
+  add     Add your external IP to the ACL
+  remove  Remove your external IP from the ACL
 
 Supported services:
   mongodbflex instance <INSTANCE_ID>
@@ -49,20 +53,26 @@ Supported services:
   mariadb instance <INSTANCE_ID>
   logme instance <INSTANCE_ID>
   ske cluster <CLUSTER_NAME>`,
-	Args: validateArgs,
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	RunE: run,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if showVer {
+			fmt.Println(Version)
+			return nil
+		}
+		return cmd.Help()
+	},
 }
 
 func init() {
-	rootCmd.Flags().StringVarP(&projectID, "project-id", "p", "", "Project ID (required)")
-	rootCmd.Flags().StringVar(&region, "region", "", "Target region for region-specific requests")
-	rootCmd.Flags().BoolVarP(&assumeYes, "assume-yes", "y", false, "If set, skips all confirmation prompts")
-	rootCmd.Flags().StringVar(&verbosity, "verbosity", "info", "Verbosity of the CLI (one of: [error, warning, info, debug])")
-	rootCmd.Flags().IntVar(&cidr, "cidr", 32, "CIDR prefix length for the IP address (0-32)")
+	rootCmd.PersistentFlags().StringVarP(&projectID, "project-id", "p", "", "Project ID (required)")
+	rootCmd.PersistentFlags().StringVar(&region, "region", "", "Target region for region-specific requests")
+	rootCmd.PersistentFlags().BoolVarP(&assumeYes, "assume-yes", "y", false, "If set, skips all confirmation prompts")
+	rootCmd.PersistentFlags().StringVar(&verbosity, "verbosity", "info", "Verbosity of the CLI (one of: [error, warning, info, debug])")
+	rootCmd.PersistentFlags().IntVar(&cidr, "cidr", 32, "CIDR prefix length for the IP address (0-32)")
 	rootCmd.Flags().BoolVarP(&showVer, "version", "v", false, "Show version")
 
+	rootCmd.AddCommand(addCmd, removeCmd)
 }
 
 func Execute() error {
@@ -70,9 +80,6 @@ func Execute() error {
 }
 
 func validateArgs(cmd *cobra.Command, args []string) error {
-	if showVer {
-		return nil
-	}
 	if projectID == "" {
 		return fmt.Errorf("required flag(s) \"project-id\" not set")
 	}
@@ -103,12 +110,14 @@ func formatSupportedServices() string {
 	return sb.String()
 }
 
-func run(cmd *cobra.Command, args []string) error {
-	if showVer {
-		fmt.Println(Version)
-		return nil
-	}
+type action string
 
+const (
+	actionAdd    action = "add"
+	actionRemove action = "remove"
+)
+
+func runACLAction(args []string, act action) error {
 	if err := stackit.CheckAvailable(); err != nil {
 		return err
 	}
@@ -118,7 +127,6 @@ func run(cmd *cobra.Command, args []string) error {
 	resourceID := args[2]
 
 	cfg, _ := services.Get(service, resourceGroup)
-
 	client := stackit.New(projectID, region)
 
 	log(verbosity, "info", "Fetching your external IP...")
@@ -154,18 +162,35 @@ func run(cmd *cobra.Command, args []string) error {
 		log(verbosity, "info", "Current ACLs: (none)")
 	}
 
-	for _, c := range currentACLs {
-		if c == cidrNotation {
+	present := acl.Contains(currentACLs, cidrNotation)
+
+	var updatedACLs []string
+	var preposition string
+
+	if act == actionAdd {
+		preposition = "to"
+		if present {
 			log(verbosity, "info", fmt.Sprintf("IP %s is already in the ACL list. No changes needed.", cidrNotation))
 			return nil
 		}
+		updatedACLs = acl.AppendCIDR(currentACLs, cidrNotation)
+	} else {
+		preposition = "from"
+		if !present {
+			log(verbosity, "info", fmt.Sprintf("IP %s is not in the ACL list. Nothing to remove.", cidrNotation))
+			return nil
+		}
+		updatedACLs = acl.RemoveCIDR(currentACLs, cidrNotation)
 	}
 
-	updatedACLs := acl.AppendCIDR(currentACLs, cidrNotation)
-	log(verbosity, "info", fmt.Sprintf("Updated ACLs: %s", strings.Join(updatedACLs, ", ")))
+	if len(updatedACLs) > 0 {
+		log(verbosity, "info", fmt.Sprintf("Updated ACLs: %s", strings.Join(updatedACLs, ", ")))
+	} else {
+		log(verbosity, "info", "Updated ACLs: (none)")
+	}
 
 	if !assumeYes {
-		prompt := fmt.Sprintf("Are you sure you want to add %s to the ACL of %s %s %q? (y/N)", cidrNotation, service, resourceGroup, resourceID)
+		prompt := fmt.Sprintf("Are you sure you want to %s %s %s the ACL of %s %s %q? (y/N)", act, cidrNotation, preposition, service, resourceGroup, resourceID)
 		if !confirmPrompt(prompt) {
 			log(verbosity, "info", "Aborted.")
 			return nil
@@ -178,18 +203,16 @@ func run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		err = client.UpdateClusterACL(cfg, resourceID, updatedPayload)
-		if err != nil {
+		if err = client.UpdateClusterACL(cfg, resourceID, updatedPayload); err != nil {
 			return err
 		}
 	} else {
-		err = client.UpdateInstanceACL(cfg, resourceID, updatedACLs)
-		if err != nil {
+		if err = client.UpdateInstanceACL(cfg, resourceID, updatedACLs); err != nil {
 			return err
 		}
 	}
 
-	log(verbosity, "info", fmt.Sprintf("Successfully added %s to the ACL of %s %s %q.", cidrNotation, service, resourceGroup, resourceID))
+	log(verbosity, "info", fmt.Sprintf("Successfully %sed %s %s the ACL of %s %s %q.", act, cidrNotation, preposition, service, resourceGroup, resourceID))
 	return nil
 }
 
