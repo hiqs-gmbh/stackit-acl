@@ -17,8 +17,7 @@ A CLI tool that automatically manages your external IP address in the ACL (Acces
 ## Installation
 
 ```shell
-make build
-# Binary is at ./bin/stackit-acl
+make build && mv bin/stackit-acl ~/.local/bin
 ```
 
 ## Shell Completion
