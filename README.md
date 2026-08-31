@@ -25,6 +25,12 @@ make build
 
 `stackit-acl` provides shell completion via its built-in `completion` subcommand (powered by Cobra).
 
+Completion is dynamic — it fetches data from the STACKIT API as you type:
+
+1. **Project ID** — lists all projects you're a member of (with project names as descriptions)
+2. **Service** — lists all supported services
+3. **Resource ID** — lists all instances/clusters of the chosen service in the project (with instance names as descriptions)
+
 ### zsh
 
 Add this to your `~/.zshrc`:
