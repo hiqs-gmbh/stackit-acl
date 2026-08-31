@@ -136,22 +136,22 @@ func runACLAction(args []string, act action) error {
 	cfg, _ := services.Get(service, resourceGroup)
 	client := stackit.New(projectID, region)
 
-	log(verbosity, "info", "Fetching your external IP...")
+	outStep("Fetching your external IP...")
 	externalIP, err := ip.Fetch()
 	if err != nil {
 		return err
 	}
-	log(verbosity, "info", fmt.Sprintf("Your external IP: %s", externalIP))
+	outInfo(fmt.Sprintf("Your external IP: %s", externalIP))
 
 	cidrNotation := acl.ToCIDR(externalIP, cidr)
-	log(verbosity, "info", fmt.Sprintf("Using CIDR: %s", cidrNotation))
+	outInfo(fmt.Sprintf("Using CIDR: %s", cidrNotation))
 
 	var jsonData []byte
 	if cfg.UpdateStrategy == services.PayloadStrategy {
-		log(verbosity, "info", fmt.Sprintf("Generating payload for %s %s %q...", service, resourceGroup, resourceID))
+		outStep(fmt.Sprintf("Generating payload for %s %s %q...", service, resourceGroup, resourceID))
 		jsonData, err = client.GeneratePayload(cfg, resourceID)
 	} else {
-		log(verbosity, "info", fmt.Sprintf("Fetching current ACLs for %s %s %q...", service, resourceGroup, resourceID))
+		outStep(fmt.Sprintf("Fetching current ACLs for %s %s %q...", service, resourceGroup, resourceID))
 		jsonData, err = client.DescribeInstance(cfg, resourceID)
 	}
 	if err != nil {
@@ -159,16 +159,11 @@ func runACLAction(args []string, act action) error {
 	}
 
 	resourceName := acl.ExtractName(jsonData, cfg)
+	resourceLabel := formatResourceLabel(resourceName, resourceID)
 
 	currentACLs, err := acl.ExtractACLs(jsonData, cfg)
 	if err != nil {
 		return err
-	}
-
-	if len(currentACLs) > 0 {
-		log(verbosity, "info", fmt.Sprintf("Current ACLs: %s", strings.Join(currentACLs, ", ")))
-	} else {
-		log(verbosity, "info", "Current ACLs: (none)")
 	}
 
 	present := acl.Contains(currentACLs, cidrNotation)
@@ -179,35 +174,35 @@ func runACLAction(args []string, act action) error {
 	if act == actionAdd {
 		preposition = "to"
 		if present {
-			log(verbosity, "info", fmt.Sprintf("IP %s is already in the ACL list. No changes needed.", cidrNotation))
+			outWarn(fmt.Sprintf("IP %s is already in the ACL list. No changes needed.", cidrNotation))
 			return nil
 		}
 		updatedACLs = acl.AppendCIDR(currentACLs, cidrNotation)
 	} else {
 		preposition = "from"
 		if !present {
-			log(verbosity, "info", fmt.Sprintf("IP %s is not in the ACL list. Nothing to remove.", cidrNotation))
+			outWarn(fmt.Sprintf("IP %s is not in the ACL list. Nothing to remove.", cidrNotation))
 			return nil
 		}
 		updatedACLs = acl.RemoveCIDR(currentACLs, cidrNotation)
 	}
 
-	if len(updatedACLs) > 0 {
-		log(verbosity, "info", fmt.Sprintf("Updated ACLs: %s", strings.Join(updatedACLs, ", ")))
-	} else {
-		log(verbosity, "info", "Updated ACLs: (none)")
+	outInfo("Updated ACLs:")
+	displayACLs := updatedACLs
+	if act == actionRemove {
+		displayACLs = currentACLs
 	}
+	fmt.Print(formatACLList(displayACLs, cidrNotation, act))
 
 	if !assumeYes {
-		resourceLabel := formatResourceLabel(resourceName, resourceID)
 		prompt := fmt.Sprintf("Are you sure you want to %s %s %s the ACL of %s %s %s? (y/N)", act, cidrNotation, preposition, service, resourceGroup, resourceLabel)
 		if !confirmPrompt(prompt) {
-			log(verbosity, "info", "Aborted.")
+			outWarn("Aborted.")
 			return nil
 		}
 	}
 
-	log(verbosity, "info", fmt.Sprintf("Updating ACLs for %s %s %q...", service, resourceGroup, resourceID))
+	outStep(fmt.Sprintf("Updating ACLs for %s %s %s...", service, resourceGroup, resourceLabel))
 	if cfg.UpdateStrategy == services.PayloadStrategy {
 		updatedPayload, err := acl.SetACLs(jsonData, cfg, updatedACLs)
 		if err != nil {
@@ -222,7 +217,7 @@ func runACLAction(args []string, act action) error {
 		}
 	}
 
-	log(verbosity, "info", fmt.Sprintf("Successfully %sed %s %s the ACL of %s %s %s.", act, cidrNotation, preposition, service, resourceGroup, formatResourceLabel(resourceName, resourceID)))
+	outSuccess(fmt.Sprintf("Successfully %sed %s %s the ACL of %s %s %s.", act, cidrNotation, preposition, service, resourceGroup, resourceLabel))
 	return nil
 }
 
@@ -233,22 +228,8 @@ var verbosityLevels = map[string]int{
 	"debug":   3,
 }
 
-func log(currentVerbosity, msgLevel, msg string) {
-	cl, ok := verbosityLevels[currentVerbosity]
-	if !ok {
-		cl = 2
-	}
-	ml, ok := verbosityLevels[msgLevel]
-	if !ok {
-		ml = 2
-	}
-	if ml <= cl {
-		fmt.Println(msg)
-	}
-}
-
 func confirmPrompt(prompt string) bool {
-	fmt.Print(prompt + " ")
+	outPrompt(prompt)
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil {
