@@ -21,6 +21,42 @@ make build
 # Binary is at ./bin/stackit-acl
 ```
 
+## Shell Completion
+
+`stackit-acl` provides shell completion via its built-in `completion` subcommand (powered by Cobra).
+
+### zsh
+
+Add this to your `~/.zshrc`:
+
+```zsh
+source <(stackit-acl completion zsh)
+```
+
+Alternatively, install the completion script to a directory on your `fpath`:
+
+```zsh
+mkdir -p ~/.zsh/completions
+stackit-acl completion zsh > ~/.zsh/completions/_stackit-acl
+```
+
+Then ensure these are in your `~/.zshrc` (before `compinit`):
+
+```zsh
+fpath+=~/.zsh/completions
+autoload -Uz compinit && compinit
+```
+
+### bash
+
+Add this to your `~/.bashrc` (or `~/.bash_profile`):
+
+```bash
+source <(stackit-acl completion bash)
+```
+
+Restart your shell or re-source your config file after making changes.
+
 ## Usage
 
 ```
