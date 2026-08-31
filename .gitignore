@@ -1,0 +1,7 @@
+# Binary
+bin/
+
+# Go
+*.test
+*.out
+coverage.html
