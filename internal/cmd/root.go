@@ -216,7 +216,11 @@ func runACLAction(args []string, act action) error {
 		}
 	}
 
-	logSuccess(fmt.Sprintf("Successfully %sed %s %s the ACL of %s %s.", act, cidrNotation, preposition, service, resourceLabel))
+	pastTense := "added"
+	if act == actionRemove {
+		pastTense = "removed"
+	}
+	logSuccess(fmt.Sprintf("Successfully %s %s %s the ACL of %s %s.", pastTense, cidrNotation, preposition, service, resourceLabel))
 	return nil
 }
 
