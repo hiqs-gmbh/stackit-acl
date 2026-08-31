@@ -113,3 +113,19 @@ func Supported() []string {
 	}
 	return services
 }
+
+func ServiceNames() []string {
+	names := make([]string, 0, len(registry))
+	for name := range registry {
+		names = append(names, name)
+	}
+	return names
+}
+
+func ResourceGroupFor(service string) (string, bool) {
+	cfg, ok := registry[service]
+	if !ok {
+		return "", false
+	}
+	return cfg.ResourceGroup, true
+}

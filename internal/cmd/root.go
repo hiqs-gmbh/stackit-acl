@@ -247,3 +247,27 @@ func confirmPrompt(prompt string) bool {
 	response = strings.ToLower(strings.TrimSpace(response))
 	return response == "y" || response == "yes"
 }
+
+func completeServiceArgs(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	switch len(args) {
+	case 0:
+		var completions []string
+		for _, name := range services.ServiceNames() {
+			if strings.HasPrefix(name, toComplete) {
+				completions = append(completions, name)
+			}
+		}
+		return completions, cobra.ShellCompDirectiveNoFileComp
+	case 1:
+		rg, ok := services.ResourceGroupFor(args[0])
+		if !ok {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		if strings.HasPrefix(rg, toComplete) {
+			return []string{rg}, cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	default:
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+}
