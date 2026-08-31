@@ -3,13 +3,28 @@ package acl
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 
 	"stackit-acl/internal/services"
 )
 
 func ToCIDR(ip string, prefix int) string {
-	return fmt.Sprintf("%s/%d", ip, prefix)
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		return fmt.Sprintf("%s/%d", ip, prefix)
+	}
+
+	var bits int
+	if parsed.To4() != nil {
+		bits = 32
+	} else {
+		bits = 128
+	}
+
+	mask := net.CIDRMask(prefix, bits)
+	masked := parsed.Mask(mask)
+	return fmt.Sprintf("%s/%d", masked, prefix)
 }
 
 func Contains(list []string, cidr string) bool {
