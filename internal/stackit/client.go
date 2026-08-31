@@ -2,6 +2,7 @@ package stackit
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +14,16 @@ import (
 type Client struct {
 	projectID string
 	region    string
+}
+
+type Project struct {
+	ID   string
+	Name string
+}
+
+type Instance struct {
+	ID   string
+	Name string
 }
 
 func New(projectID, region string) *Client {
@@ -28,6 +39,53 @@ func CheckAvailable() error {
 		return fmt.Errorf("stackit CLI not found in PATH. Please install it first: https://github.com/stackitcloud/stackit-cli")
 	}
 	return nil
+}
+
+func ListProjects() ([]Project, error) {
+	args := []string{"project", "list", "--output-format", "json", "--verbosity", "error"}
+	out, err := runRaw(args)
+	if err != nil {
+		return nil, err
+	}
+
+	var raw []struct {
+		ProjectID string `json:"projectId"`
+		Name      string `json:"name"`
+	}
+	if err := json.Unmarshal(out, &raw); err != nil {
+		return nil, fmt.Errorf("parse project list JSON: %w", err)
+	}
+
+	projects := make([]Project, 0, len(raw))
+	for _, p := range raw {
+		projects = append(projects, Project{ID: p.ProjectID, Name: p.Name})
+	}
+	return projects, nil
+}
+
+func ListInstances(projectID, region string, cfg services.ServiceConfig) ([]Instance, error) {
+	args := []string{cfg.Name, cfg.ResourceGroup, "list", "--output-format", "json", "--verbosity", "error", "-p", projectID}
+	if region != "" {
+		args = append(args, "--region", region)
+	}
+	out, err := runRaw(args)
+	if err != nil {
+		return nil, err
+	}
+
+	var raw []struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(out, &raw); err != nil {
+		return nil, fmt.Errorf("parse instance list JSON: %w", err)
+	}
+
+	instances := make([]Instance, 0, len(raw))
+	for _, i := range raw {
+		instances = append(instances, Instance{ID: i.ID, Name: i.Name})
+	}
+	return instances, nil
 }
 
 func (c *Client) globalArgs() []string {
@@ -82,6 +140,11 @@ func (c *Client) UpdateClusterACL(cfg services.ServiceConfig, resourceID string,
 }
 
 func (c *Client) run(args []string) ([]byte, error) {
+	args = append(args, c.globalArgs()...)
+	return runRaw(args)
+}
+
+func runRaw(args []string) ([]byte, error) {
 	cmd := exec.Command("stackit", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

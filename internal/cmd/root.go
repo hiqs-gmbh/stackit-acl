@@ -17,7 +17,6 @@ import (
 const Version = "0.2.0"
 
 var (
-	projectID string
 	region    string
 	assumeYes bool
 	verbosity string
@@ -36,23 +35,23 @@ ACL list of the specified STACKIT service instance or cluster.
 The stackit CLI must be installed and authenticated.
 
 Usage:
-  stackit-acl <command> <service> <resource-group> <resource-id> [flags]
+  stackit-acl <command> <project-id> <service> <resource-id> [flags]
 
 Commands:
   add     Add your external IP to the ACL
   remove  Remove your external IP from the ACL
 
 Supported services:
-  mongodbflex instance <INSTANCE_ID>
-  postgresflex instance <INSTANCE_ID>
-  sqlserverflex instance <INSTANCE_ID>
-  redis instance <INSTANCE_ID>
-  valkey instance <INSTANCE_ID>
-  opensearch instance <INSTANCE_ID>
-  rabbitmq instance <INSTANCE_ID>
-  mariadb instance <INSTANCE_ID>
-  logme instance <INSTANCE_ID>
-  ske cluster <CLUSTER_NAME>`,
+  mongodbflex
+  postgresflex
+  sqlserverflex
+  redis
+  valkey
+  opensearch
+  rabbitmq
+  mariadb
+  logme
+  ske`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -65,7 +64,6 @@ Supported services:
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&projectID, "project-id", "p", "", "Project ID (required)")
 	rootCmd.PersistentFlags().StringVar(&region, "region", "", "Target region for region-specific requests")
 	rootCmd.PersistentFlags().BoolVarP(&assumeYes, "assume-yes", "y", false, "If set, skips all confirmation prompts")
 	rootCmd.PersistentFlags().StringVar(&verbosity, "verbosity", "info", "Verbosity of the CLI (one of: [error, warning, info, debug])")
@@ -80,18 +78,14 @@ func Execute() error {
 }
 
 func validateArgs(cmd *cobra.Command, args []string) error {
-	if projectID == "" {
-		return fmt.Errorf("required flag(s) \"project-id\" not set")
-	}
 	if len(args) != 3 {
-		return fmt.Errorf("requires exactly 3 arguments: <service> <resource-group> <resource-id>\n\nSupported services:\n%s", formatSupportedServices())
+		return fmt.Errorf("requires exactly 3 arguments: <project-id> <service> <resource-id>\n\nSupported services:\n%s", formatSupportedServices())
 	}
 
-	service := args[0]
-	resourceGroup := args[1]
+	service := args[1]
 
-	if _, ok := services.Get(service, resourceGroup); !ok {
-		return fmt.Errorf("unsupported service/resource-group: %s %s\n\nSupported services:\n%s", service, resourceGroup, formatSupportedServices())
+	if _, ok := services.GetByName(service); !ok {
+		return fmt.Errorf("unsupported service: %s\n\nSupported services:\n%s", service, formatSupportedServices())
 	}
 
 	if cidr < 0 || cidr > 32 {
@@ -102,9 +96,9 @@ func validateArgs(cmd *cobra.Command, args []string) error {
 }
 
 func formatSupportedServices() string {
-	supported := services.Supported()
+	names := services.ServiceNames()
 	var sb strings.Builder
-	for _, s := range supported {
+	for _, s := range names {
 		sb.WriteString("  " + s + "\n")
 	}
 	return sb.String()
@@ -129,11 +123,11 @@ func runACLAction(args []string, act action) error {
 		return err
 	}
 
-	service := args[0]
-	resourceGroup := args[1]
+	projectID := args[0]
+	service := args[1]
 	resourceID := args[2]
 
-	cfg, _ := services.Get(service, resourceGroup)
+	cfg, _ := services.GetByName(service)
 	client := stackit.New(projectID, region)
 
 	outStep("Fetching your external IP...")
@@ -148,10 +142,10 @@ func runACLAction(args []string, act action) error {
 
 	var jsonData []byte
 	if cfg.UpdateStrategy == services.PayloadStrategy {
-		outStep(fmt.Sprintf("Generating payload for %s %s %q...", service, resourceGroup, resourceID))
+		outStep(fmt.Sprintf("Generating payload for %s %q...", service, resourceID))
 		jsonData, err = client.GeneratePayload(cfg, resourceID)
 	} else {
-		outStep(fmt.Sprintf("Fetching current ACLs for %s %s %q...", service, resourceGroup, resourceID))
+		outStep(fmt.Sprintf("Fetching current ACLs for %s %q...", service, resourceID))
 		jsonData, err = client.DescribeInstance(cfg, resourceID)
 	}
 	if err != nil {
@@ -195,14 +189,14 @@ func runACLAction(args []string, act action) error {
 	fmt.Print(formatACLList(displayACLs, cidrNotation, act))
 
 	if !assumeYes {
-		prompt := fmt.Sprintf("Are you sure you want to %s %s %s the ACL of %s %s %s? (y/N)", act, cidrNotation, preposition, service, resourceGroup, resourceLabel)
+		prompt := fmt.Sprintf("Are you sure you want to %s %s %s the ACL of %s %s? (y/N)", act, cidrNotation, preposition, service, resourceLabel)
 		if !confirmPrompt(prompt) {
 			outWarn("Aborted.")
 			return nil
 		}
 	}
 
-	outStep(fmt.Sprintf("Updating ACLs for %s %s %s...", service, resourceGroup, resourceLabel))
+	outStep(fmt.Sprintf("Updating ACLs for %s %s...", service, resourceLabel))
 	if cfg.UpdateStrategy == services.PayloadStrategy {
 		updatedPayload, err := acl.SetACLs(jsonData, cfg, updatedACLs)
 		if err != nil {
@@ -217,7 +211,7 @@ func runACLAction(args []string, act action) error {
 		}
 	}
 
-	outSuccess(fmt.Sprintf("Successfully %sed %s %s the ACL of %s %s %s.", act, cidrNotation, preposition, service, resourceGroup, resourceLabel))
+	outSuccess(fmt.Sprintf("Successfully %sed %s %s the ACL of %s %s.", act, cidrNotation, preposition, service, resourceLabel))
 	return nil
 }
 
@@ -239,9 +233,25 @@ func confirmPrompt(prompt string) bool {
 	return response == "y" || response == "yes"
 }
 
-func completeServiceArgs(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+func completeArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	switch len(args) {
 	case 0:
+		projects, err := stackit.ListProjects()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		var completions []string
+		for _, p := range projects {
+			if strings.HasPrefix(p.ID, toComplete) {
+				if p.Name != "" {
+					completions = append(completions, p.ID+"\t"+p.Name)
+				} else {
+					completions = append(completions, p.ID)
+				}
+			}
+		}
+		return completions, cobra.ShellCompDirectiveNoFileComp
+	case 1:
 		var completions []string
 		for _, name := range services.ServiceNames() {
 			if strings.HasPrefix(name, toComplete) {
@@ -249,15 +259,27 @@ func completeServiceArgs(_ *cobra.Command, args []string, toComplete string) ([]
 			}
 		}
 		return completions, cobra.ShellCompDirectiveNoFileComp
-	case 1:
-		rg, ok := services.ResourceGroupFor(args[0])
+	case 2:
+		cfg, ok := services.GetByName(args[1])
 		if !ok {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		if strings.HasPrefix(rg, toComplete) {
-			return []string{rg}, cobra.ShellCompDirectiveNoFileComp
+		reg, _ := cmd.Flags().GetString("region")
+		instances, err := stackit.ListInstances(args[0], reg, cfg)
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		var completions []string
+		for _, inst := range instances {
+			if strings.HasPrefix(inst.ID, toComplete) {
+				if inst.Name != "" {
+					completions = append(completions, inst.ID+"\t"+inst.Name)
+				} else {
+					completions = append(completions, inst.ID)
+				}
+			}
+		}
+		return completions, cobra.ShellCompDirectiveNoFileComp
 	default:
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}

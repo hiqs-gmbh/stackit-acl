@@ -60,7 +60,7 @@ Restart your shell or re-source your config file after making changes.
 ## Usage
 
 ```
-stackit-acl <command> <service> <resource-group> <resource-id> [flags]
+stackit-acl <command> <project-id> <service> <resource-id> [flags]
 ```
 
 ### Commands
@@ -72,24 +72,23 @@ stackit-acl <command> <service> <resource-group> <resource-id> [flags]
 
 ### Supported services
 
-| Service | Resource Group | Example |
-|---|---|---|
-| mongodbflex | instance | `stackit-acl add mongodbflex instance <INSTANCE_ID> -p <PROJECT_ID>` |
-| postgresflex | instance | `stackit-acl add postgresflex instance <INSTANCE_ID> -p <PROJECT_ID>` |
-| sqlserverflex | instance | `stackit-acl add sqlserverflex instance <INSTANCE_ID> -p <PROJECT_ID>` |
-| redis | instance | `stackit-acl add redis instance <INSTANCE_ID> -p <PROJECT_ID>` |
-| valkey | instance | `stackit-acl add valkey instance <INSTANCE_ID> -p <PROJECT_ID>` |
-| opensearch | instance | `stackit-acl add opensearch instance <INSTANCE_ID> -p <PROJECT_ID>` |
-| rabbitmq | instance | `stackit-acl add rabbitmq instance <INSTANCE_ID> -p <PROJECT_ID>` |
-| mariadb | instance | `stackit-acl add mariadb instance <INSTANCE_ID> -p <PROJECT_ID>` |
-| logme | instance | `stackit-acl add logme instance <INSTANCE_ID> -p <PROJECT_ID>` |
-| ske | cluster | `stackit-acl add ske cluster <CLUSTER_NAME> -p <PROJECT_ID>` |
+| Service | Example |
+|---|---|
+| mongodbflex | `stackit-acl add <PROJECT_ID> mongodbflex <INSTANCE_ID>` |
+| postgresflex | `stackit-acl add <PROJECT_ID> postgresflex <INSTANCE_ID>` |
+| sqlserverflex | `stackit-acl add <PROJECT_ID> sqlserverflex <INSTANCE_ID>` |
+| redis | `stackit-acl add <PROJECT_ID> redis <INSTANCE_ID>` |
+| valkey | `stackit-acl add <PROJECT_ID> valkey <INSTANCE_ID>` |
+| opensearch | `stackit-acl add <PROJECT_ID> opensearch <INSTANCE_ID>` |
+| rabbitmq | `stackit-acl add <PROJECT_ID> rabbitmq <INSTANCE_ID>` |
+| mariadb | `stackit-acl add <PROJECT_ID> mariadb <INSTANCE_ID>` |
+| logme | `stackit-acl add <PROJECT_ID> logme <INSTANCE_ID>` |
+| ske | `stackit-acl add <PROJECT_ID> ske <CLUSTER_NAME>` |
 
 ### Flags
 
 | Flag | Shorthand | Default | Description |
 |---|---|---|---|
-| `--project-id` | `-p` | | Project ID (required) |
 | `--region` | | | Target region for region-specific requests |
 | `--assume-yes` | `-y` | `false` | Skip confirmation prompts |
 | `--verbosity` | | `info` | `error`, `warning`, `info`, `debug` |
@@ -100,17 +99,17 @@ stackit-acl <command> <service> <resource-group> <resource-id> [flags]
 
 ```shell
 # Add your IP to a MongoDB Flex instance
-stackit-acl add mongodbflex instance abc-123-def -p 00000000-0000-0000-0000-000000000000
+stackit-acl add 00000000-0000-0000-0000-000000000000 mongodbflex abc-123-def
 
 # Remove your IP from an SKE cluster
-stackit-acl remove ske cluster my-cluster -p 00000000-0000-0000-0000-000000000000
+stackit-acl remove 00000000-0000-0000-0000-000000000000 ske my-cluster
 
 # Add your IP to an SKE cluster with a /24 prefix
-stackit-acl add ske cluster my-cluster -p 00000000-0000-0000-0000-000000000000 --cidr 24
+stackit-acl add 00000000-0000-0000-0000-000000000000 ske my-cluster --cidr 24
 
 # Add your IP to a Redis instance in a specific region, skipping confirmation
-stackit-acl add redis instance abc-123-def -p 00000000-0000-0000-0000-000000000000 --region eu01 -y
+stackit-acl add 00000000-0000-0000-0000-000000000000 redis abc-123-def --region eu01 -y
 
 # Remove your IP from a PostgreSQL Flex instance
-stackit-acl remove postgresflex instance abc-123-def -p 00000000-0000-0000-0000-000000000000
+stackit-acl remove 00000000-0000-0000-0000-000000000000 postgresflex abc-123-def
 ```

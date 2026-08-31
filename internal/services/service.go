@@ -117,6 +117,14 @@ func Get(service, resourceGroup string) (ServiceConfig, bool) {
 	return cfg, true
 }
 
+func GetByName(service string) (ServiceConfig, bool) {
+	cfg, ok := registry[service]
+	if !ok {
+		return ServiceConfig{}, false
+	}
+	return cfg, true
+}
+
 func Supported() []string {
 	services := make([]string, 0, len(registry))
 	for _, cfg := range registry {
