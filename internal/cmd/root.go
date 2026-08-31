@@ -110,6 +110,13 @@ func formatSupportedServices() string {
 	return sb.String()
 }
 
+func formatResourceLabel(name, id string) string {
+	if name != "" && name != id {
+		return fmt.Sprintf("%q (%q)", name, id)
+	}
+	return fmt.Sprintf("%q", id)
+}
+
 type action string
 
 const (
@@ -151,6 +158,8 @@ func runACLAction(args []string, act action) error {
 		return err
 	}
 
+	resourceName := acl.ExtractName(jsonData, cfg)
+
 	currentACLs, err := acl.ExtractACLs(jsonData, cfg)
 	if err != nil {
 		return err
@@ -190,7 +199,8 @@ func runACLAction(args []string, act action) error {
 	}
 
 	if !assumeYes {
-		prompt := fmt.Sprintf("Are you sure you want to %s %s %s the ACL of %s %s %q? (y/N)", act, cidrNotation, preposition, service, resourceGroup, resourceID)
+		resourceLabel := formatResourceLabel(resourceName, resourceID)
+		prompt := fmt.Sprintf("Are you sure you want to %s %s %s the ACL of %s %s %s? (y/N)", act, cidrNotation, preposition, service, resourceGroup, resourceLabel)
 		if !confirmPrompt(prompt) {
 			log(verbosity, "info", "Aborted.")
 			return nil
@@ -212,7 +222,7 @@ func runACLAction(args []string, act action) error {
 		}
 	}
 
-	log(verbosity, "info", fmt.Sprintf("Successfully %sed %s %s the ACL of %s %s %q.", act, cidrNotation, preposition, service, resourceGroup, resourceID))
+	log(verbosity, "info", fmt.Sprintf("Successfully %sed %s %s the ACL of %s %s %s.", act, cidrNotation, preposition, service, resourceGroup, formatResourceLabel(resourceName, resourceID)))
 	return nil
 }
 

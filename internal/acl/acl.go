@@ -134,3 +134,22 @@ func navigatePath(data map[string]interface{}, path string) interface{} {
 
 	return current
 }
+
+func ExtractName(jsonData []byte, cfg services.ServiceConfig) string {
+	if cfg.NameJSONPath == "" {
+		return ""
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		return ""
+	}
+	val := navigatePath(data, cfg.NameJSONPath)
+	if val == nil {
+		return ""
+	}
+	s, ok := val.(string)
+	if !ok {
+		return ""
+	}
+	return s
+}

@@ -18,6 +18,7 @@ type ServiceConfig struct {
 	Name           string
 	ResourceGroup  string
 	ACLJSONPath    string
+	NameJSONPath   string
 	ACLType        ACLType
 	UpdateStrategy UpdateStrategy
 }
@@ -27,6 +28,7 @@ var registry = map[string]ServiceConfig{
 		Name:           "mongodbflex",
 		ResourceGroup:  "instance",
 		ACLJSONPath:    "acl.items",
+		NameJSONPath:   "name",
 		ACLType:        ACLArray,
 		UpdateStrategy: FlagStrategy,
 	},
@@ -34,6 +36,7 @@ var registry = map[string]ServiceConfig{
 		Name:           "postgresflex",
 		ResourceGroup:  "instance",
 		ACLJSONPath:    "network.acl",
+		NameJSONPath:   "name",
 		ACLType:        ACLArray,
 		UpdateStrategy: FlagStrategy,
 	},
@@ -41,6 +44,7 @@ var registry = map[string]ServiceConfig{
 		Name:           "sqlserverflex",
 		ResourceGroup:  "instance",
 		ACLJSONPath:    "network.acl",
+		NameJSONPath:   "name",
 		ACLType:        ACLArray,
 		UpdateStrategy: FlagStrategy,
 	},
@@ -48,6 +52,7 @@ var registry = map[string]ServiceConfig{
 		Name:           "redis",
 		ResourceGroup:  "instance",
 		ACLJSONPath:    "parameters.sgw_acl",
+		NameJSONPath:   "name",
 		ACLType:        ACLCommaString,
 		UpdateStrategy: FlagStrategy,
 	},
@@ -55,6 +60,7 @@ var registry = map[string]ServiceConfig{
 		Name:           "valkey",
 		ResourceGroup:  "instance",
 		ACLJSONPath:    "parameters.sgw_acl",
+		NameJSONPath:   "name",
 		ACLType:        ACLCommaString,
 		UpdateStrategy: FlagStrategy,
 	},
@@ -62,6 +68,7 @@ var registry = map[string]ServiceConfig{
 		Name:           "opensearch",
 		ResourceGroup:  "instance",
 		ACLJSONPath:    "parameters.sgw_acl",
+		NameJSONPath:   "name",
 		ACLType:        ACLCommaString,
 		UpdateStrategy: FlagStrategy,
 	},
@@ -69,6 +76,7 @@ var registry = map[string]ServiceConfig{
 		Name:           "rabbitmq",
 		ResourceGroup:  "instance",
 		ACLJSONPath:    "parameters.sgw_acl",
+		NameJSONPath:   "name",
 		ACLType:        ACLCommaString,
 		UpdateStrategy: FlagStrategy,
 	},
@@ -76,6 +84,7 @@ var registry = map[string]ServiceConfig{
 		Name:           "mariadb",
 		ResourceGroup:  "instance",
 		ACLJSONPath:    "parameters.sgw_acl",
+		NameJSONPath:   "name",
 		ACLType:        ACLCommaString,
 		UpdateStrategy: FlagStrategy,
 	},
@@ -83,6 +92,7 @@ var registry = map[string]ServiceConfig{
 		Name:           "logme",
 		ResourceGroup:  "instance",
 		ACLJSONPath:    "parameters.sgw_acl",
+		NameJSONPath:   "name",
 		ACLType:        ACLCommaString,
 		UpdateStrategy: FlagStrategy,
 	},
@@ -90,6 +100,7 @@ var registry = map[string]ServiceConfig{
 		Name:           "ske",
 		ResourceGroup:  "cluster",
 		ACLJSONPath:    "extensions.acl.allowedCidrs",
+		NameJSONPath:   "name",
 		ACLType:        ACLArray,
 		UpdateStrategy: PayloadStrategy,
 	},
