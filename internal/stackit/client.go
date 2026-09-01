@@ -98,7 +98,6 @@ func (c *Client) globalArgs() []string {
 
 func (c *Client) DescribeInstance(cfg services.ServiceConfig, resourceID string) ([]byte, error) {
 	args := []string{cfg.Name, cfg.ResourceGroup, "describe", resourceID, "--output-format", "json"}
-	args = append(args, c.globalArgs()...)
 	return c.run(args)
 }
 
@@ -108,14 +107,12 @@ func (c *Client) UpdateInstanceACL(cfg services.ServiceConfig, resourceID string
 		args = append(args, "--acl", cidr)
 	}
 	args = append(args, "--assume-yes")
-	args = append(args, c.globalArgs()...)
 	_, err := c.run(args)
 	return err
 }
 
 func (c *Client) GeneratePayload(cfg services.ServiceConfig, resourceID string) ([]byte, error) {
 	args := []string{cfg.Name, cfg.ResourceGroup, "generate-payload", "--cluster-name", resourceID}
-	args = append(args, c.globalArgs()...)
 	return c.run(args)
 }
 
@@ -124,7 +121,7 @@ func (c *Client) UpdateClusterACL(cfg services.ServiceConfig, resourceID string,
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	if _, err := tmpFile.Write(payload); err != nil {
 		return fmt.Errorf("write temp file: %w", err)
@@ -134,7 +131,6 @@ func (c *Client) UpdateClusterACL(cfg services.ServiceConfig, resourceID string,
 	}
 
 	args := []string{cfg.Name, cfg.ResourceGroup, "update", resourceID, "--payload", "@" + tmpFile.Name(), "--assume-yes"}
-	args = append(args, c.globalArgs()...)
 	_, err = c.run(args)
 	return err
 }
