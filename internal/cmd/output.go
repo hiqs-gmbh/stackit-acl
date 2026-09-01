@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -60,6 +59,8 @@ func (h *cliHandler) Handle(_ context.Context, r slog.Record) error {
 	case "error":
 		prefix = "✗ "
 		c = colorError
+	case "prompt":
+		c = colorPrompt
 	default:
 		c = colorInfo
 	}
@@ -67,10 +68,17 @@ func (h *cliHandler) Handle(_ context.Context, r slog.Record) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if r.Level >= slog.LevelError {
-		_, _ = c.Fprintf(os.Stderr, "%s%s\n", prefix, r.Message)
-	} else {
-		_, _ = c.Fprintf(os.Stdout, "%s%s\n", prefix, r.Message)
+	switch kind {
+	case "prompt":
+		_, _ = c.Fprintf(os.Stdout, "%s%s ", prefix, r.Message)
+	case "raw":
+		_, _ = os.Stdout.WriteString(r.Message)
+	default:
+		if r.Level >= slog.LevelError {
+			_, _ = c.Fprintf(os.Stderr, "%s%s\n", prefix, r.Message)
+		} else {
+			_, _ = c.Fprintf(os.Stdout, "%s%s\n", prefix, r.Message)
+		}
 	}
 
 	return nil
@@ -115,8 +123,12 @@ func logWarn(msg string, args ...any) {
 	slog.Warn(msg, append([]any{"kind", "warn"}, args...)...)
 }
 
-func outPrompt(msg string) {
-	_, _ = colorPrompt.Print(msg + " ")
+func logPrompt(msg string, args ...any) {
+	slog.Info(msg, append([]any{"kind", "prompt"}, args...)...)
+}
+
+func logRaw(msg string, args ...any) {
+	slog.Info(msg, append([]any{"kind", "raw"}, args...)...)
 }
 
 func formatACLList(current []string, changed string, act action) string {
@@ -133,7 +145,7 @@ func formatACLList(current []string, changed string, act action) string {
 				sb.WriteString("\n")
 			}
 		} else {
-			fmt.Fprintf(&sb, "  • %s\n", entry)
+			sb.WriteString("  • " + entry + "\n")
 		}
 	}
 	return sb.String()

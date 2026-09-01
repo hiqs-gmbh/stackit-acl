@@ -60,7 +60,7 @@ Supported services:
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if showVer {
-			fmt.Println(Version)
+			logInfo(Version)
 			return nil
 		}
 		return cmd.Help()
@@ -223,7 +223,7 @@ func runACLAction(args []string, act action) error {
 		if act == actionRemove {
 			displayACLs = ch.currentACLs
 		}
-		fmt.Print(formatACLList(displayACLs, cidrNotation, act))
+		logRaw(formatACLList(displayACLs, cidrNotation, act))
 	}
 
 	if !assumeYes {
@@ -266,7 +266,7 @@ func runACLAction(args []string, act action) error {
 	if len(failedLabels) > 0 {
 		var sb strings.Builder
 		for i, label := range failedLabels {
-			fmt.Fprintf(&sb, "  %s %s: %v\n", service, label, failedErrs[i])
+			sb.WriteString("  " + service + " " + label + ": " + failedErrs[i].Error() + "\n")
 		}
 		return fmt.Errorf("failed to update the ACL of %d of %d resources:\n%s", len(failedLabels), len(changes), sb.String())
 	}
@@ -289,7 +289,7 @@ func uniqueResourceIDs(ids []string) []string {
 }
 
 func confirmPrompt(prompt string) bool {
-	outPrompt(prompt)
+	logPrompt(prompt)
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
 	if err != nil {

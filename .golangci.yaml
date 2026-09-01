@@ -3,7 +3,15 @@ version: "2"
 linters:
   enable:
     - errcheck
+    - forbidigo
     - govet
     - ineffassign
     - staticcheck
     - unused
+  settings:
+    forbidigo:
+      forbid:
+        - pattern: '^fmt\.Print.*$'
+          msg: use log/slog for logging
+        - pattern: '^fmt\.Fprint.*$'
+          msg: use log/slog for logging
