@@ -68,9 +68,9 @@ func (h *cliHandler) Handle(_ context.Context, r slog.Record) error {
 	defer h.mu.Unlock()
 
 	if r.Level >= slog.LevelError {
-		c.Fprintf(os.Stderr, "%s%s\n", prefix, r.Message)
+		_, _ = c.Fprintf(os.Stderr, "%s%s\n", prefix, r.Message)
 	} else {
-		c.Fprintf(os.Stdout, "%s%s\n", prefix, r.Message)
+		_, _ = c.Fprintf(os.Stdout, "%s%s\n", prefix, r.Message)
 	}
 
 	return nil
@@ -116,7 +116,7 @@ func logWarn(msg string, args ...any) {
 }
 
 func outPrompt(msg string) {
-	colorPrompt.Print(msg + " ")
+	_, _ = colorPrompt.Print(msg + " ")
 }
 
 func formatACLList(current []string, changed string, act action) string {
@@ -125,15 +125,15 @@ func formatACLList(current []string, changed string, act action) string {
 		if entry == changed {
 			if act == actionAdd {
 				sb.WriteString("  ")
-				colorAdded.Fprint(&sb, "+ "+entry)
+				_, _ = colorAdded.Fprint(&sb, "+ "+entry)
 				sb.WriteString("\n")
 			} else {
 				sb.WriteString("  ")
-				colorRemoved.Fprint(&sb, "- "+entry)
+				_, _ = colorRemoved.Fprint(&sb, "- "+entry)
 				sb.WriteString("\n")
 			}
 		} else {
-			sb.WriteString(fmt.Sprintf("  • %s\n", entry))
+			fmt.Fprintf(&sb, "  • %s\n", entry)
 		}
 	}
 	return sb.String()

@@ -9,7 +9,7 @@ import (
 func TestFetch_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("1.2.3.4\n"))
+		_, _ = w.Write([]byte("1.2.3.4\n"))
 	}))
 	defer server.Close()
 
@@ -29,7 +29,7 @@ func TestFetch_Success(t *testing.T) {
 func TestFetch_TrimsWhitespace(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("  10.0.0.1  \n\n"))
+		_, _ = w.Write([]byte("  10.0.0.1  \n\n"))
 	}))
 	defer server.Close()
 
@@ -65,7 +65,7 @@ func TestFetch_NonOKStatus(t *testing.T) {
 func TestFetch_InvalidIP(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("not-an-ip"))
+		_, _ = w.Write([]byte("not-an-ip"))
 	}))
 	defer server.Close()
 
@@ -82,7 +82,7 @@ func TestFetch_InvalidIP(t *testing.T) {
 func TestFetch_IPv6(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("2001:db8::1"))
+		_, _ = w.Write([]byte("2001:db8::1"))
 	}))
 	defer server.Close()
 
