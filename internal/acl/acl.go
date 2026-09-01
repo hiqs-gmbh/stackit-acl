@@ -6,7 +6,7 @@ import (
 	"net"
 	"strings"
 
-	"stackit-acl/internal/services"
+	"github.com/hiqs-gmbh/stackit-acl/internal/services"
 )
 
 func ToCIDR(ip string, prefix int) string {

@@ -1,4 +1,4 @@
-module stackit-acl
+module github.com/hiqs-gmbh/stackit-acl
 
 go 1.27.0
 

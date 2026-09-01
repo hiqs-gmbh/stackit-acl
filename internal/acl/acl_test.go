@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"stackit-acl/internal/services"
+	"github.com/hiqs-gmbh/stackit-acl/internal/services"
 )
 
 func TestToCIDR(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"stackit-acl/internal/services"
+	"github.com/hiqs-gmbh/stackit-acl/internal/services"
 )
 
 type Client struct {

@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"stackit-acl/internal/acl"
-	"stackit-acl/internal/ip"
-	"stackit-acl/internal/services"
-	"stackit-acl/internal/stackit"
+	"github.com/hiqs-gmbh/stackit-acl/internal/acl"
+	"github.com/hiqs-gmbh/stackit-acl/internal/ip"
+	"github.com/hiqs-gmbh/stackit-acl/internal/services"
+	"github.com/hiqs-gmbh/stackit-acl/internal/stackit"
 
 	"github.com/spf13/cobra"
 )

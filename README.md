@@ -17,6 +17,12 @@ A CLI tool that automatically manages your external IP address in the ACL (Acces
 ## Installation
 
 ```shell
+go install github.com/hiqs-gmbh/stackit-acl@latest
+```
+
+Or build from source:
+
+```shell
 make build && mv bin/stackit-acl ~/.local/bin
 ```
 

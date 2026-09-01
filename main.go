@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"stackit-acl/internal/cmd"
+	"github.com/hiqs-gmbh/stackit-acl/internal/cmd"
 )
 
 func main() {
