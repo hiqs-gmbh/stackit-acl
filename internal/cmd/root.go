@@ -35,7 +35,7 @@ ACL list of the specified STACKIT service instance or cluster.
 The stackit CLI must be installed and authenticated.
 
 Usage:
-  stackit-acl <command> <project-id> <service> <resource-id> [flags]
+  stackit-acl <command> <project-id> <service> <resource-id> [resource-id...] [flags]
 
 Commands:
   add     Add your external IP to the ACL
@@ -83,8 +83,8 @@ func Execute() error {
 }
 
 func validateArgs(cmd *cobra.Command, args []string) error {
-	if len(args) != 3 {
-		return fmt.Errorf("requires exactly 3 arguments: <project-id> <service> <resource-id>\n\nSupported services:\n%s", formatSupportedServices())
+	if len(args) < 3 {
+		return fmt.Errorf("requires at least 3 arguments: <project-id> <service> <resource-id> [resource-id...]\n\nSupported services:\n%s", formatSupportedServices())
 	}
 
 	service := args[1]
@@ -123,6 +123,14 @@ const (
 	actionRemove action = "remove"
 )
 
+type plannedChange struct {
+	resourceID    string
+	resourceLabel string
+	currentACLs   []string
+	updatedACLs   []string
+	jsonData      []byte
+}
+
 func runACLAction(args []string, act action) error {
 	if err := stackit.CheckAvailable(); err != nil {
 		return err
@@ -130,7 +138,7 @@ func runACLAction(args []string, act action) error {
 
 	projectID := args[0]
 	service := args[1]
-	resourceID := args[2]
+	resourceIDs := uniqueResourceIDs(args[2:])
 
 	cfg, _ := services.GetByName(service)
 	client := stackit.New(projectID, region)
@@ -145,83 +153,139 @@ func runACLAction(args []string, act action) error {
 	cidrNotation := acl.ToCIDR(externalIP, cidr)
 	logInfo(fmt.Sprintf("Using CIDR: %s", cidrNotation))
 
-	var jsonData []byte
-	if cfg.UpdateStrategy == services.PayloadStrategy {
-		logStep(fmt.Sprintf("Generating payload for %s %q...", service, resourceID))
-		jsonData, err = client.GeneratePayload(cfg, resourceID)
-	} else {
-		logStep(fmt.Sprintf("Fetching current ACLs for %s %q...", service, resourceID))
-		jsonData, err = client.DescribeInstance(cfg, resourceID)
-	}
-	if err != nil {
-		return err
-	}
-
-	resourceName := acl.ExtractName(jsonData, cfg)
-	resourceLabel := formatResourceLabel(resourceName, resourceID)
-
-	currentACLs, err := acl.ExtractACLs(jsonData, cfg)
-	if err != nil {
-		return err
-	}
-
-	present := acl.Contains(currentACLs, cidrNotation)
-
-	var updatedACLs []string
-	var preposition string
-
-	if act == actionAdd {
-		preposition = "to"
-		if present {
-			logWarn(fmt.Sprintf("IP %s is already in the ACL list. No changes needed.", cidrNotation))
-			return nil
-		}
-		updatedACLs = acl.AppendCIDR(currentACLs, cidrNotation)
-	} else {
-		preposition = "from"
-		if !present {
-			logWarn(fmt.Sprintf("IP %s is not in the ACL list. Nothing to remove.", cidrNotation))
-			return nil
-		}
-		updatedACLs = acl.RemoveCIDR(currentACLs, cidrNotation)
-	}
-
-	logInfo("Updated ACLs:")
-	displayACLs := updatedACLs
+	preposition := "to"
+	pastTense := "added"
 	if act == actionRemove {
-		displayACLs = currentACLs
+		preposition = "from"
+		pastTense = "removed"
 	}
-	fmt.Print(formatACLList(displayACLs, cidrNotation, act))
+
+	var changes []plannedChange
+
+	for _, resourceID := range resourceIDs {
+		var jsonData []byte
+		if cfg.UpdateStrategy == services.PayloadStrategy {
+			logStep(fmt.Sprintf("Generating payload for %s %q...", service, resourceID))
+			jsonData, err = client.GeneratePayload(cfg, resourceID)
+		} else {
+			logStep(fmt.Sprintf("Fetching current ACLs for %s %q...", service, resourceID))
+			jsonData, err = client.DescribeInstance(cfg, resourceID)
+		}
+		if err != nil {
+			return err
+		}
+
+		resourceName := acl.ExtractName(jsonData, cfg)
+		resourceLabel := formatResourceLabel(resourceName, resourceID)
+
+		currentACLs, err := acl.ExtractACLs(jsonData, cfg)
+		if err != nil {
+			return err
+		}
+
+		present := acl.Contains(currentACLs, cidrNotation)
+
+		if act == actionAdd && present {
+			logWarn(fmt.Sprintf("IP %s is already in the ACL list of %s %s. No changes needed.", cidrNotation, service, resourceLabel))
+			continue
+		}
+		if act == actionRemove && !present {
+			logWarn(fmt.Sprintf("IP %s is not in the ACL list of %s %s. Nothing to remove.", cidrNotation, service, resourceLabel))
+			continue
+		}
+
+		var updatedACLs []string
+		if act == actionAdd {
+			updatedACLs = acl.AppendCIDR(currentACLs, cidrNotation)
+		} else {
+			updatedACLs = acl.RemoveCIDR(currentACLs, cidrNotation)
+		}
+
+		changes = append(changes, plannedChange{
+			resourceID:    resourceID,
+			resourceLabel: resourceLabel,
+			currentACLs:   currentACLs,
+			updatedACLs:   updatedACLs,
+			jsonData:      jsonData,
+		})
+	}
+
+	if len(changes) == 0 {
+		if len(resourceIDs) > 1 {
+			logWarn("No ACL changes needed for any resource.")
+		}
+		return nil
+	}
+
+	for _, ch := range changes {
+		logInfo(fmt.Sprintf("Updated ACLs for %s %s:", service, ch.resourceLabel))
+		displayACLs := ch.updatedACLs
+		if act == actionRemove {
+			displayACLs = ch.currentACLs
+		}
+		fmt.Print(formatACLList(displayACLs, cidrNotation, act))
+	}
 
 	if !assumeYes {
-		prompt := fmt.Sprintf("Are you sure you want to %s %s %s the ACL of %s %s? (y/N)", act, cidrNotation, preposition, service, resourceLabel)
+		target := fmt.Sprintf("%s %s", service, changes[0].resourceLabel)
+		if len(changes) > 1 {
+			target = fmt.Sprintf("%d %s resources", len(changes), service)
+		}
+		prompt := fmt.Sprintf("Are you sure you want to %s %s %s the ACL of %s? (y/N)", act, cidrNotation, preposition, target)
 		if !confirmPrompt(prompt) {
 			logWarn("Aborted.")
 			return nil
 		}
 	}
 
-	logStep(fmt.Sprintf("Updating ACLs for %s %s...", service, resourceLabel))
-	if cfg.UpdateStrategy == services.PayloadStrategy {
-		updatedPayload, err := acl.SetACLs(jsonData, cfg, updatedACLs)
-		if err != nil {
-			return err
+	var failedLabels []string
+	var failedErrs []error
+
+	for _, ch := range changes {
+		logStep(fmt.Sprintf("Updating ACLs for %s %s...", service, ch.resourceLabel))
+
+		var applyErr error
+		if cfg.UpdateStrategy == services.PayloadStrategy {
+			var updatedPayload []byte
+			updatedPayload, applyErr = acl.SetACLs(ch.jsonData, cfg, ch.updatedACLs)
+			if applyErr == nil {
+				applyErr = client.UpdateClusterACL(cfg, ch.resourceID, updatedPayload)
+			}
+		} else {
+			applyErr = client.UpdateInstanceACL(cfg, ch.resourceID, ch.updatedACLs)
 		}
-		if err = client.UpdateClusterACL(cfg, resourceID, updatedPayload); err != nil {
-			return err
+		if applyErr != nil {
+			failedLabels = append(failedLabels, ch.resourceLabel)
+			failedErrs = append(failedErrs, applyErr)
+			continue
 		}
-	} else {
-		if err = client.UpdateInstanceACL(cfg, resourceID, updatedACLs); err != nil {
-			return err
-		}
+
+		logSuccess(fmt.Sprintf("Successfully %s %s %s the ACL of %s %s.", pastTense, cidrNotation, preposition, service, ch.resourceLabel))
 	}
 
-	pastTense := "added"
-	if act == actionRemove {
-		pastTense = "removed"
+	if len(failedLabels) > 0 {
+		var sb strings.Builder
+		for i, label := range failedLabels {
+			fmt.Fprintf(&sb, "  %s %s: %v\n", service, label, failedErrs[i])
+		}
+		return fmt.Errorf("failed to update the ACL of %d of %d resources:\n%s", len(failedLabels), len(changes), sb.String())
 	}
-	logSuccess(fmt.Sprintf("Successfully %s %s %s the ACL of %s %s.", pastTense, cidrNotation, preposition, service, resourceLabel))
+
 	return nil
+}
+
+func uniqueResourceIDs(ids []string) []string {
+	seen := make(map[string]struct{}, len(ids))
+	result := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if _, ok := seen[id]; ok {
+			logWarn(fmt.Sprintf("Ignoring duplicate resource ID %q.", id))
+			continue
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	return result
 }
 
 func confirmPrompt(prompt string) bool {
@@ -261,7 +325,7 @@ func completeArgs(cmd *cobra.Command, args []string, toComplete string) ([]strin
 			}
 		}
 		return completions, cobra.ShellCompDirectiveNoFileComp
-	case 2:
+	default:
 		cfg, ok := services.GetByName(args[1])
 		if !ok {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -271,18 +335,21 @@ func completeArgs(cmd *cobra.Command, args []string, toComplete string) ([]strin
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
+		selected := make(map[string]bool, len(args)-2)
+		for _, id := range args[2:] {
+			selected[id] = true
+		}
 		var completions []string
 		for _, inst := range instances {
-			if strings.HasPrefix(inst.ID, toComplete) {
-				if inst.Name != "" {
-					completions = append(completions, inst.ID+"\t"+inst.Name)
-				} else {
-					completions = append(completions, inst.ID)
-				}
+			if selected[inst.ID] || !strings.HasPrefix(inst.ID, toComplete) {
+				continue
+			}
+			if inst.Name != "" {
+				completions = append(completions, inst.ID+"\t"+inst.Name)
+			} else {
+				completions = append(completions, inst.ID)
 			}
 		}
 		return completions, cobra.ShellCompDirectiveNoFileComp
-	default:
-		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 }

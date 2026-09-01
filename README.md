@@ -34,7 +34,7 @@ Completion is dynamic — it fetches data from the STACKIT API as you type:
 
 1. **Project ID** — lists all projects you're a member of (with project names as descriptions)
 2. **Service** — lists all supported services
-3. **Resource ID** — lists all instances/clusters of the chosen service in the project (with instance names as descriptions)
+3. **Resource ID(s)** — lists all instances/clusters of the chosen service in the project (with instance names as descriptions; already-selected IDs are excluded)
 
 ### zsh
 
@@ -71,8 +71,10 @@ Restart your shell or re-source your config file after making changes.
 ## Usage
 
 ```
-stackit-acl <command> <project-id> <service> <resource-id> [flags]
+stackit-acl <command> <project-id> <service> <resource-id> [resource-id...] [flags]
 ```
+
+Multiple resource IDs can be passed to apply the same change to all of them at once (bulk mode). The tool fetches your external IP once, shows the planned changes for every resource, and asks for a single confirmation before updating. Resources that are already in the desired state are skipped; duplicates are ignored.
 
 ### Commands
 
@@ -123,4 +125,10 @@ stackit-acl add 00000000-0000-0000-0000-000000000000 redis abc-123-def --region 
 
 # Remove your IP from a PostgreSQL Flex instance
 stackit-acl remove 00000000-0000-0000-0000-000000000000 postgresflex abc-123-def
+
+# Add your IP to multiple PostgreSQL Flex instances at once
+stackit-acl add 00000000-0000-0000-0000-000000000000 postgresflex abc-123-def abc-456-ghi
+
+# Remove your IP from multiple Redis instances, skipping confirmation
+stackit-acl remove 00000000-0000-0000-0000-000000000000 redis abc-123-def abc-456-ghi -y
 ```
