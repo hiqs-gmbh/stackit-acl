@@ -12,8 +12,9 @@
 - Build: `make build` (writes `bin/stackit-acl`)
 - Test: `make test`
 - Lint: `make lint` (golangci-lint; must pass with 0 issues)
+- Snapshot build: `make snapshot` (GoReleaser; builds all release targets into `dist/`)
 - Format check: `gofmt -l .` (must print nothing)
-- All three: `make lint build test` — run this before finishing any change.
+- Run `make lint build test` before finishing any change.
 
 ## Repository layout
 
@@ -54,6 +55,7 @@
 
 ## Releases
 
-- Version lives in `const Version` in `internal/cmd/root.go`.
-- Release flow: bump the constant → commit as `Bump version to X.Y.Z` → create a **lightweight** tag `vX.Y.Z` (repo convention) → `git push origin main vX.Y.Z`.
+- Version lives in `var Version` in `internal/cmd/root.go` and is injected at build time via `-ldflags -X`; local builds show `dev`, release binaries show the tag version.
+- Release flow: tag `vX.Y.Z` (lightweight, repo convention) → `git push origin main vX.Y.Z` → the Release workflow (`.github/workflows/release.yml`) runs lint + tests and publishes the GoReleaser release automatically.
+- Verify release tooling locally with `goreleaser check` and `make snapshot` before tagging.
 - Note: `git push --follow-tags` does **not** push lightweight tags — always push tags explicitly.

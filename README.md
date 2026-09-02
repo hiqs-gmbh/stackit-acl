@@ -16,6 +16,17 @@ A CLI tool that automatically manages your external IP address in the ACL (Acces
 
 ## Installation
 
+Download the latest binary for your platform from the [GitHub releases](https://github.com/hiqs-gmbh/stackit-acl/releases) (checksums are published as `checksums.txt`):
+
+| Platform | Archive |
+|---|---|
+| macOS (Apple Silicon) | `stackit-acl_X.Y.Z_darwin_arm64.tar.gz` |
+| macOS (Intel) | `stackit-acl_X.Y.Z_darwin_amd64.tar.gz` |
+| Linux (x86_64) | `stackit-acl_X.Y.Z_linux_amd64.tar.gz` |
+| Linux (ARM64) | `stackit-acl_X.Y.Z_linux_arm64.tar.gz` |
+
+Or install with Go:
+
 ```shell
 go install github.com/hiqs-gmbh/stackit-acl@latest
 ```
