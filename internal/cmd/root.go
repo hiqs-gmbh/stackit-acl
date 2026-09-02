@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const Version = "0.3.0"
+var Version = "dev"
 
 var (
 	region    string
