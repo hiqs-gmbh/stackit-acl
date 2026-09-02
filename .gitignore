@@ -1,6 +1,9 @@
 # Binary
 bin/
 
+# GoReleaser
+dist/
+
 # Go
 *.test
 *.out

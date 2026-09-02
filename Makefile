@@ -1,4 +1,4 @@
-.PHONY: build test lint clean
+.PHONY: build test lint snapshot clean
 
 build:
 	go build -o bin/stackit-acl .
@@ -9,5 +9,8 @@ test:
 lint:
 	golangci-lint run
 
+snapshot:
+	goreleaser build --snapshot --clean
+
 clean:
-	rm -rf bin/
+	rm -rf bin/ dist/

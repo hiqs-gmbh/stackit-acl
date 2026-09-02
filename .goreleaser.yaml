@@ -1,0 +1,30 @@
+version: 2
+
+project_name: stackit-acl
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/hiqs-gmbh/stackit-acl/internal/cmd.Version={{.Version}}
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+release:
+  github:
+    owner: hiqs-gmbh
+    name: stackit-acl
