@@ -3,6 +3,7 @@ package stackit
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -140,6 +141,27 @@ func (c *Client) run(args []string) ([]byte, error) {
 	return runRaw(args)
 }
 
+type commandError struct {
+	args   []string
+	stderr string
+	err    error
+}
+
+func (e *commandError) Error() string {
+	return fmt.Sprintf("stackit %s: %v\n%s", strings.Join(e.args, " "), e.err, e.stderr)
+}
+
+func IsAuthError(err error) bool {
+	var cmdErr *commandError
+	if !errors.As(err, &cmdErr) {
+		return false
+	}
+	msg := strings.ToLower(cmdErr.stderr)
+	return strings.Contains(msg, "not authenticated") ||
+		strings.Contains(msg, "unauthorized") ||
+		strings.Contains(msg, "401")
+}
+
 func runRaw(args []string) ([]byte, error) {
 	cmd := exec.Command("stackit", args...)
 	var stdout, stderr bytes.Buffer
@@ -147,7 +169,7 @@ func runRaw(args []string) ([]byte, error) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("stackit %s: %w\n%s", strings.Join(args, " "), err, stderr.String())
+		return nil, &commandError{args: args, stderr: stderr.String(), err: err}
 	}
 
 	return stdout.Bytes(), nil

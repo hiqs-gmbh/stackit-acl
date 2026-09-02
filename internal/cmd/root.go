@@ -299,12 +299,37 @@ func confirmPrompt(prompt string) bool {
 	return response == "y" || response == "yes"
 }
 
+func completionErrorHint(subject string, err error) []string {
+	if stackit.IsAuthError(err) {
+		return cobra.AppendActiveHelp(nil, "Not authenticated. Run 'stackit auth login' and try again.")
+	}
+	return cobra.AppendActiveHelp(nil, "Failed to list "+subject+": "+errDetail(err))
+}
+
+func errDetail(err error) string {
+	msg := err.Error()
+	stderr := msg
+	if idx := strings.Index(msg, "\n"); idx >= 0 {
+		stderr = msg[idx+1:]
+		msg = msg[:idx]
+	}
+	for _, line := range strings.Split(stderr, "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			return trimmed
+		}
+	}
+	if idx := strings.Index(msg, ": "); idx >= 0 {
+		return msg[idx+2:]
+	}
+	return msg
+}
+
 func completeArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	switch len(args) {
 	case 0:
 		projects, err := stackit.ListProjects()
 		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
+			return completionErrorHint("projects", err), cobra.ShellCompDirectiveNoFileComp
 		}
 		var completions []string
 		for _, p := range projects {
@@ -333,7 +358,7 @@ func completeArgs(cmd *cobra.Command, args []string, toComplete string) ([]strin
 		reg, _ := cmd.Flags().GetString("region")
 		instances, err := stackit.ListInstances(args[0], reg, cfg)
 		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
+			return completionErrorHint("instances", err), cobra.ShellCompDirectiveNoFileComp
 		}
 		selected := make(map[string]bool, len(args)-2)
 		for _, id := range args[2:] {

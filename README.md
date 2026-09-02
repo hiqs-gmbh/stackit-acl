@@ -36,6 +36,8 @@ Completion is dynamic — it fetches data from the STACKIT API as you type:
 2. **Service** — lists all supported services
 3. **Resource ID(s)** — lists all instances/clusters of the chosen service in the project (with instance names as descriptions; already-selected IDs are excluded)
 
+If the STACKIT CLI is not authenticated (e.g. your access token has expired), the completion shows a hint to run `stackit auth login` instead of failing silently. Other errors are shown with a short reason.
+
 ### zsh
 
 Add this to your `~/.zshrc`:
