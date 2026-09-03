@@ -75,8 +75,9 @@ func ListInstances(projectID, region string, cfg services.ServiceConfig) ([]Inst
 	}
 
 	var raw []struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
+		ID         string `json:"id"`
+		InstanceID string `json:"instanceId"`
+		Name       string `json:"name"`
 	}
 	if err := json.Unmarshal(out, &raw); err != nil {
 		return nil, fmt.Errorf("parse instance list JSON: %w", err)
@@ -84,7 +85,11 @@ func ListInstances(projectID, region string, cfg services.ServiceConfig) ([]Inst
 
 	instances := make([]Instance, 0, len(raw))
 	for _, i := range raw {
-		instances = append(instances, Instance{ID: i.ID, Name: i.Name})
+		id := i.ID
+		if id == "" {
+			id = i.InstanceID
+		}
+		instances = append(instances, Instance{ID: id, Name: i.Name})
 	}
 	return instances, nil
 }
