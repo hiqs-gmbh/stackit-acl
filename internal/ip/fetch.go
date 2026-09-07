@@ -1,6 +1,7 @@
 package ip
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -9,7 +10,11 @@ import (
 	"time"
 )
 
-var ifconfigURL = "https://ifconfig.schwarz"
+var endpoints = []string{
+	"https://ifconfig.schwarz",
+	"https://checkip.amazonaws.com",
+	"https://v4.ident.me",
+}
 
 var (
 	maxAttempts = 3
@@ -18,12 +23,25 @@ var (
 
 func Fetch() (string, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
+
+	var errs []error
+	for _, endpoint := range endpoints {
+		addr, err := fetchFrom(client, endpoint)
+		if err == nil {
+			return addr, nil
+		}
+		errs = append(errs, err)
+	}
+	return "", fmt.Errorf("fetch external IP: %w", errors.Join(errs...))
+}
+
+func fetchFrom(client *http.Client, endpoint string) (string, error) {
 	attempts := max(maxAttempts, 1)
 
 	var err error
 	for attempt := 1; attempt <= attempts; attempt++ {
 		var addr string
-		addr, err = fetchOnce(client)
+		addr, err = fetchOnce(client, endpoint)
 		if err == nil {
 			return addr, nil
 		}
@@ -31,11 +49,11 @@ func Fetch() (string, error) {
 			time.Sleep(retryDelay)
 		}
 	}
-	return "", fmt.Errorf("fetch external IP after %d attempts: %w", attempts, err)
+	return "", fmt.Errorf("%s (after %d attempts): %w", endpoint, attempts, err)
 }
 
-func fetchOnce(client *http.Client) (string, error) {
-	resp, err := client.Get(ifconfigURL)
+func fetchOnce(client *http.Client, endpoint string) (string, error) {
+	resp, err := client.Get(endpoint)
 	if err != nil {
 		return "", err
 	}

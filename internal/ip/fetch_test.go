@@ -13,9 +13,9 @@ func TestFetch_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	originalURL := ifconfigURL
-	ifconfigURL = server.URL
-	defer func() { ifconfigURL = originalURL }()
+	originalEndpoints := endpoints
+	endpoints = []string{server.URL}
+	defer func() { endpoints = originalEndpoints }()
 
 	addr, err := Fetch()
 	if err != nil {
@@ -33,9 +33,9 @@ func TestFetch_TrimsWhitespace(t *testing.T) {
 	}))
 	defer server.Close()
 
-	originalURL := ifconfigURL
-	ifconfigURL = server.URL
-	defer func() { ifconfigURL = originalURL }()
+	originalEndpoints := endpoints
+	endpoints = []string{server.URL}
+	defer func() { endpoints = originalEndpoints }()
 
 	addr, err := Fetch()
 	if err != nil {
@@ -54,9 +54,9 @@ func TestFetch_NonOKStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	originalURL := ifconfigURL
-	ifconfigURL = server.URL
-	defer func() { ifconfigURL = originalURL }()
+	originalEndpoints := endpoints
+	endpoints = []string{server.URL}
+	defer func() { endpoints = originalEndpoints }()
 
 	originalDelay := retryDelay
 	retryDelay = 0
@@ -78,9 +78,9 @@ func TestFetch_InvalidIP(t *testing.T) {
 	}))
 	defer server.Close()
 
-	originalURL := ifconfigURL
-	ifconfigURL = server.URL
-	defer func() { ifconfigURL = originalURL }()
+	originalEndpoints := endpoints
+	endpoints = []string{server.URL}
+	defer func() { endpoints = originalEndpoints }()
 
 	originalDelay := retryDelay
 	retryDelay = 0
@@ -89,6 +89,26 @@ func TestFetch_InvalidIP(t *testing.T) {
 	_, err := Fetch()
 	if err == nil {
 		t.Fatal("expected error for invalid IP")
+	}
+}
+
+func TestFetch_IPv6(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("2001:db8::1"))
+	}))
+	defer server.Close()
+
+	originalEndpoints := endpoints
+	endpoints = []string{server.URL}
+	defer func() { endpoints = originalEndpoints }()
+
+	addr, err := Fetch()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if addr != "2001:db8::1" {
+		t.Errorf("expected 2001:db8::1, got %s", addr)
 	}
 }
 
@@ -105,9 +125,9 @@ func TestFetch_RetriesTransientError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	originalURL := ifconfigURL
-	ifconfigURL = server.URL
-	defer func() { ifconfigURL = originalURL }()
+	originalEndpoints := endpoints
+	endpoints = []string{server.URL}
+	defer func() { endpoints = originalEndpoints }()
 
 	originalDelay := retryDelay
 	retryDelay = 0
@@ -125,22 +145,61 @@ func TestFetch_RetriesTransientError(t *testing.T) {
 	}
 }
 
-func TestFetch_IPv6(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("2001:db8::1"))
+func TestFetch_FallsBackToNextEndpoint(t *testing.T) {
+	failedCalls := 0
+	failed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		failedCalls++
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
-	defer server.Close()
+	defer failed.Close()
 
-	originalURL := ifconfigURL
-	ifconfigURL = server.URL
-	defer func() { ifconfigURL = originalURL }()
+	working := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("1.2.3.4\n"))
+	}))
+	defer working.Close()
+
+	originalEndpoints := endpoints
+	endpoints = []string{failed.URL, working.URL}
+	defer func() { endpoints = originalEndpoints }()
+
+	originalDelay := retryDelay
+	retryDelay = 0
+	defer func() { retryDelay = originalDelay }()
 
 	addr, err := Fetch()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if addr != "2001:db8::1" {
-		t.Errorf("expected 2001:db8::1, got %s", addr)
+	if addr != "1.2.3.4" {
+		t.Errorf("expected 1.2.3.4, got %s", addr)
+	}
+	if failedCalls != maxAttempts {
+		t.Errorf("expected %d calls to failed endpoint, got %d", maxAttempts, failedCalls)
+	}
+}
+
+func TestFetch_AllEndpointsFail(t *testing.T) {
+	calls := 0
+	failed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer failed.Close()
+
+	originalEndpoints := endpoints
+	endpoints = []string{failed.URL, failed.URL}
+	defer func() { endpoints = originalEndpoints }()
+
+	originalDelay := retryDelay
+	retryDelay = 0
+	defer func() { retryDelay = originalDelay }()
+
+	_, err := Fetch()
+	if err == nil {
+		t.Fatal("expected error when all endpoints fail")
+	}
+	if calls != 2*maxAttempts {
+		t.Errorf("expected %d calls, got %d", 2*maxAttempts, calls)
 	}
 }

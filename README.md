@@ -4,7 +4,7 @@ A CLI tool that automatically manages your external IP address in the ACL (Acces
 
 ## What it does
 
-1. Fetches your external IP from `https://ifconfig.schwarz`
+1. Fetches your external IP (from `https://ifconfig.schwarz`, falling back to `https://checkip.amazonaws.com` and `https://v4.ident.me`)
 2. Converts it to CIDR notation (default `/32`, configurable via `--cidr`)
 3. Fetches the current ACLs of the specified service instance/cluster
 4. Adds or removes your IP from the ACL list (skips if already in desired state)
