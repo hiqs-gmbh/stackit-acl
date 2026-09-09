@@ -56,8 +56,9 @@ Usage:
   stackit-acl <command> <project-id> <service> <resource-id> [resource-id...] [flags]
 
 Commands:
-  add     Add your external IP to the ACL
-  remove  Remove your external IP from the ACL
+  add         Add your external IP to the ACL
+  remove      Remove your external IP from the ACL
+  self-update Update the stackit-acl binary
 
 Supported services:
   mongodbflex
@@ -92,7 +93,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVar(&cidr, "cidr", 32, "CIDR prefix length for the IP address (0-32)")
 	rootCmd.Flags().BoolVarP(&showVer, "version", "v", false, "Show version")
 
-	rootCmd.AddCommand(addCmd, removeCmd)
+	rootCmd.AddCommand(addCmd, removeCmd, selfUpdateCmd)
 }
 
 func Execute() error {

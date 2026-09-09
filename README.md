@@ -31,6 +31,8 @@ Or install with Go:
 go install github.com/hiqs-gmbh/stackit-acl@latest
 ```
 
+To update an existing installation, run `stackit-acl self-update`.
+
 Or build from source:
 
 ```shell
@@ -81,6 +83,7 @@ Multiple resource IDs can be passed to apply the same change to all of them at o
 |---|---|
 | `add` | Add your external IP to the ACL |
 | `remove` | Remove your external IP from the ACL |
+| `self-update` | Update the stackit-acl binary |
 
 ### Supported services
 
@@ -107,6 +110,16 @@ Multiple resource IDs can be passed to apply the same change to all of them at o
 | `--cidr` | | `32` | CIDR prefix length (0-32) |
 | `--version` | `-v` | | Show version |
 
+### Self-update
+
+`self-update` updates the installed binary from the [GitHub releases](https://github.com/hiqs-gmbh/stackit-acl/releases). It shows the current and the new version, asks for confirmation (unless `--assume-yes` is set), verifies the SHA-256 checksum of the download, and replaces the binary atomically:
+
+| Flag | Default | Description |
+|---|---|---|
+| `--check` | `false` | Check for the latest release without installing it |
+| `--version` | | Install a specific version (e.g. `0.4.0` or `v0.4.0`) instead of the latest |
+| `--output` | | Install the binary at the given path (default: replace the running binary) |
+
 ### Examples
 
 ```shell
@@ -130,4 +143,10 @@ stackit-acl add 00000000-0000-0000-0000-000000000000 postgresflex abc-123-def ab
 
 # Remove your IP from multiple Redis instances, skipping confirmation
 stackit-acl remove 00000000-0000-0000-0000-000000000000 redis abc-123-def abc-456-ghi -y
+
+# Check for a newer version without installing it
+stackit-acl self-update --check
+
+# Update to a specific version, skipping confirmation
+stackit-acl self-update --version v0.4.0 -y
 ```

@@ -22,10 +22,12 @@
 - `internal/cmd/` — cobra commands and CLI glue.
   - `root.go` — root command, flags, arg validation/completion, and `runACLAction` (the plan → confirm → apply flow, supports multiple resource IDs / bulk mode).
   - `add.go`, `remove.go` — thin command definitions, both call `runACLAction`.
+  - `self_update.go` — `self-update` command (plan → confirm → apply flow against GitHub releases).
   - `output.go` — custom `slog` handler with colored output and the `logStep`/`logInfo`/`logSuccess`/`logWarn`/`logPrompt`/`logRaw` helpers.
 - `internal/services/service.go` — registry of supported STACKIT services (`ServiceConfig`: JSON paths, ACL type, update strategy).
 - `internal/acl/` — pure functions: CIDR conversion, ACL extraction/insertion from JSON payloads.
 - `internal/ip/` — external IP fetching (`https://ifconfig.schwarz`).
+- `internal/selfupdate/` — GitHub release lookups, download, checksum verification, and atomic binary replacement (stdlib only, no GitHub SDK).
 - `internal/stackit/client.go` — wrapper around the `stackit` CLI (`runRaw` builds and executes the command).
 
 ## Code style
@@ -50,7 +52,7 @@
 
 ## Testing
 
-- Unit tests exist only for pure packages (`internal/acl`, `internal/ip`, `internal/services`); `internal/cmd` and `internal/stackit` have none.
+- Unit tests exist only for pure packages (`internal/acl`, `internal/ip`, `internal/selfupdate`, `internal/services`); `internal/cmd` and `internal/stackit` have none.
 - Manual end-to-end verification: create a stub `stackit` script on `PATH` that handles `<service> <group> describe|update|generate-payload`, then run the built binary against fake resource IDs. Cover: happy path, confirmation prompt (pipe `y`/`n` to stdin), bulk with mixed no-ops, and a failing update to check the error summary and exit code.
 
 ## Releases
