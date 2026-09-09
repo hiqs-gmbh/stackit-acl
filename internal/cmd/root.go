@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/hiqs-gmbh/stackit-acl/internal/acl"
@@ -15,6 +16,23 @@ import (
 )
 
 var Version = "dev"
+
+func init() {
+	if Version == "dev" {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			if version := info.Main.Version; strings.HasPrefix(version, "v") {
+				Version = version
+			}
+		}
+	}
+}
+
+func currentVersionLabel() string {
+	if Version == "dev" {
+		return Version
+	}
+	return "v" + strings.TrimPrefix(Version, "v")
+}
 
 var (
 	region    string
@@ -60,7 +78,7 @@ Supported services:
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if showVer {
-			logInfo(Version)
+			logInfo(currentVersionLabel())
 			return nil
 		}
 		return cmd.Help()
