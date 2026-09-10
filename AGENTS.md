@@ -57,6 +57,7 @@
 
 ## Releases
 
+- Versioning follows semver `vX.Y.Z`: `X` (major) is bumped for breaking changes, `Y` (minor) for new features, `Z` (patch) for bugfixes and other small fixes.
 - Version lives in `var Version` in `internal/cmd/root.go` and is injected at build time via `-ldflags -X`; release binaries show the tag version. When no version is injected, `init()` falls back to `debug.ReadBuildInfo().Main.Version`: binaries installed via `go install github.com/hiqs-gmbh/stackit-acl@vX.Y.Z` report `vX.Y.Z`, and local `go build` runs report the VCS-stamped version (e.g. `v0.4.0+dirty`) or `dev` when none is available. `--version` always prints the version with a `v` prefix.
 - Release flow: tag `vX.Y.Z` (lightweight, repo convention) → `git push origin main vX.Y.Z` → the Release workflow (`.github/workflows/release.yml`) runs lint + tests and publishes the GoReleaser release automatically.
 - Verify release tooling locally with `goreleaser check` and `make snapshot` before tagging.
