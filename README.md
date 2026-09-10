@@ -57,20 +57,6 @@ Add this to your `~/.zshrc`:
 source <(stackit-acl completion zsh)
 ```
 
-Alternatively, install the completion script to a directory on your `fpath`:
-
-```zsh
-mkdir -p ~/.zsh/completions
-stackit-acl completion zsh > ~/.zsh/completions/_stackit-acl
-```
-
-Then ensure these are in your `~/.zshrc` (before `compinit`):
-
-```zsh
-fpath+=~/.zsh/completions
-autoload -Uz compinit && compinit
-```
-
 ### bash
 
 Add this to your `~/.bashrc` (or `~/.bash_profile`):
