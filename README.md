@@ -4,7 +4,7 @@ A CLI tool that automatically manages your external IP address in the ACL (Acces
 
 ## What it does
 
-1. Fetches your external IP (from `https://ifconfig.schwarz`, falling back to `https://checkip.amazonaws.com` and `https://v4.ident.me`)
+1. Fetches your external IP (from `https://ifconfig.schwarz`, falling back to `https://checkip.amazonaws.com` and `https://v4.ident.me`), or uses the address passed via `--ip`
 2. Converts it to CIDR notation (default `/32`, configurable via `--cidr`)
 3. Fetches the current ACLs of the specified service instance/cluster
 4. Adds or removes your IP from the ACL list (skips if already in desired state)
@@ -111,6 +111,7 @@ The `list` command is read-only: it shows the currently applied ACLs without fet
 | `--assume-yes` | `-y` | `false` | Skip confirmation prompts |
 | `--verbosity` | | `info` | `error`, `warning`, `info`, `debug` |
 | `--cidr` | | `32` | CIDR prefix length (0-32) |
+| `--ip` | | | Use the given IP address instead of auto-detecting your external IP |
 | `--version` | `-v` | | Show version |
 
 ### Self-update
@@ -134,6 +135,12 @@ stackit-acl remove 00000000-0000-0000-0000-000000000000 ske my-cluster
 
 # Add your IP to an SKE cluster with a /24 prefix
 stackit-acl add 00000000-0000-0000-0000-000000000000 ske my-cluster --cidr 24
+
+# Add a specific IP instead of the auto-detected one
+stackit-acl add 00000000-0000-0000-0000-000000000000 postgresflex abc-123-def --ip 203.0.113.10
+
+# Add a specific IP range as a /24 network
+stackit-acl add 00000000-0000-0000-0000-000000000000 postgresflex abc-123-def --ip 203.0.113.0 --cidr 24
 
 # Add your IP to a Redis instance in a specific region, skipping confirmation
 stackit-acl add 00000000-0000-0000-0000-000000000000 redis abc-123-def --region eu01 -y

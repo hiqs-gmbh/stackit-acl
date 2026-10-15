@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -39,6 +40,7 @@ var (
 	assumeYes bool
 	verbosity string
 	cidr      int
+	manualIP  string
 	showVer   bool
 )
 
@@ -92,6 +94,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&assumeYes, "assume-yes", "y", false, "If set, skips all confirmation prompts")
 	rootCmd.PersistentFlags().StringVar(&verbosity, "verbosity", "info", "Verbosity of the CLI (one of: [error, warning, info, debug])")
 	rootCmd.PersistentFlags().IntVar(&cidr, "cidr", 32, "CIDR prefix length for the IP address (0-32)")
+	rootCmd.PersistentFlags().StringVar(&manualIP, "ip", "", "Use the given IP address instead of auto-detecting your external IP")
 	rootCmd.Flags().BoolVarP(&showVer, "version", "v", false, "Show version")
 
 	rootCmd.AddCommand(addCmd, listCmd, removeCmd, selfUpdateCmd)
@@ -115,6 +118,10 @@ func validateArgs(cmd *cobra.Command, args []string) error {
 
 	if cidr < 0 || cidr > 32 {
 		return fmt.Errorf("--cidr must be between 0 and 32, got %d", cidr)
+	}
+
+	if manualIP != "" && net.ParseIP(manualIP) == nil {
+		return fmt.Errorf("--ip must be a valid IP address, got %q", manualIP)
 	}
 
 	return nil
@@ -175,6 +182,21 @@ func fetchCurrentACLs(client *stackit.Client, cfg services.ServiceConfig, servic
 	return resourceLabel, currentACLs, jsonData, nil
 }
 
+func resolveExternalIP() (string, error) {
+	if manualIP != "" {
+		logInfo(fmt.Sprintf("Using provided IP: %s", manualIP))
+		return manualIP, nil
+	}
+
+	logStep("Fetching your external IP...")
+	externalIP, err := ip.Fetch()
+	if err != nil {
+		return "", err
+	}
+	logInfo(fmt.Sprintf("Your external IP: %s", externalIP))
+	return externalIP, nil
+}
+
 func runACLAction(args []string, act action) error {
 	if err := stackit.CheckAvailable(); err != nil {
 		return err
@@ -187,12 +209,10 @@ func runACLAction(args []string, act action) error {
 	cfg, _ := services.GetByName(service)
 	client := stackit.New(projectID, region)
 
-	logStep("Fetching your external IP...")
-	externalIP, err := ip.Fetch()
+	externalIP, err := resolveExternalIP()
 	if err != nil {
 		return err
 	}
-	logInfo(fmt.Sprintf("Your external IP: %s", externalIP))
 
 	cidrNotation := acl.ToCIDR(externalIP, cidr)
 	logInfo(fmt.Sprintf("Using CIDR: %s", cidrNotation))
