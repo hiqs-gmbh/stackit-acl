@@ -11,8 +11,8 @@ import (
 )
 
 var listCmd = &cobra.Command{
-	Use:               "list <project-id> <service> [resource-id...]",
-	Short:             "List the currently applied ACLs",
+	Use:   "list <project-id> <service> [resource-id...]",
+	Short: "List the currently applied ACLs",
 	Long: `Fetches and displays the currently applied ACLs of the specified STACKIT service instances or clusters.
 
 If no resource ID is passed, the ACLs of all instances of the given service in the project are listed.`,
