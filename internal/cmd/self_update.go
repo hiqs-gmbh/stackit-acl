@@ -35,7 +35,6 @@ func init() {
 	flags.BoolVar(&selfUpdateCheck, "check", false, "Check for the latest release without installing it")
 	flags.StringVar(&selfUpdateVersion, "version", "", "Install the given version instead of the latest (e.g. 0.4.0 or v0.4.0)")
 	flags.StringVar(&selfUpdateOutput, "output", "", "Install the binary at the given path (default: replace the running binary)")
-	rootCmd.AddCommand(selfUpdateCmd)
 }
 
 func runSelfUpdate() error {
