@@ -77,11 +77,14 @@ stackit-acl <command> <project-id> <service> <resource-id> [resource-id...] [fla
 
 Multiple resource IDs can be passed to apply the same change to all of them at once (bulk mode). The tool fetches your external IP once, shows the planned changes for every resource, and asks for a single confirmation before updating. Resources that are already in the desired state are skipped; duplicates are ignored.
 
+The `list` command is read-only: it shows the currently applied ACLs without fetching your external IP or asking for confirmation. Resource IDs are optional — when none is passed, the ACLs of all instances of the given service in the project are listed.
+
 ### Commands
 
 | Command | Description |
 |---|---|
 | `add` | Add your external IP to the ACL |
+| `list` | List the currently applied ACLs |
 | `remove` | Remove your external IP from the ACL |
 | `self-update` | Update the stackit-acl binary |
 
@@ -143,6 +146,12 @@ stackit-acl add 00000000-0000-0000-0000-000000000000 postgresflex abc-123-def ab
 
 # Remove your IP from multiple Redis instances, skipping confirmation
 stackit-acl remove 00000000-0000-0000-0000-000000000000 redis abc-123-def abc-456-ghi -y
+
+# List the currently applied ACLs of a PostgreSQL Flex instance
+stackit-acl list 00000000-0000-0000-0000-000000000000 postgresflex abc-123-def
+
+# List the currently applied ACLs of all Redis instances in the project
+stackit-acl list 00000000-0000-0000-0000-000000000000 redis
 
 # Check for a newer version without installing it
 stackit-acl self-update --check

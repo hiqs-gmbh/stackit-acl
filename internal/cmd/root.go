@@ -57,6 +57,7 @@ Usage:
 
 Commands:
   add         Add your external IP to the ACL
+  list        List the currently applied ACLs
   remove      Remove your external IP from the ACL
   self-update Update the stackit-acl binary
 
@@ -93,7 +94,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVar(&cidr, "cidr", 32, "CIDR prefix length for the IP address (0-32)")
 	rootCmd.Flags().BoolVarP(&showVer, "version", "v", false, "Show version")
 
-	rootCmd.AddCommand(addCmd, removeCmd, selfUpdateCmd)
+	rootCmd.AddCommand(addCmd, listCmd, removeCmd, selfUpdateCmd)
 }
 
 func Execute() error {
@@ -150,6 +151,30 @@ type plannedChange struct {
 	jsonData      []byte
 }
 
+func fetchCurrentACLs(client *stackit.Client, cfg services.ServiceConfig, service, resourceID string) (string, []string, []byte, error) {
+	var jsonData []byte
+	var err error
+	if cfg.UpdateStrategy == services.PayloadStrategy {
+		logStep(fmt.Sprintf("Generating payload for %s %q...", service, resourceID))
+		jsonData, err = client.GeneratePayload(cfg, resourceID)
+	} else {
+		logStep(fmt.Sprintf("Fetching current ACLs for %s %q...", service, resourceID))
+		jsonData, err = client.DescribeInstance(cfg, resourceID)
+	}
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	resourceLabel := formatResourceLabel(acl.ExtractName(jsonData, cfg), resourceID)
+
+	currentACLs, err := acl.ExtractACLs(jsonData, cfg)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	return resourceLabel, currentACLs, jsonData, nil
+}
+
 func runACLAction(args []string, act action) error {
 	if err := stackit.CheckAvailable(); err != nil {
 		return err
@@ -182,22 +207,7 @@ func runACLAction(args []string, act action) error {
 	var changes []plannedChange
 
 	for _, resourceID := range resourceIDs {
-		var jsonData []byte
-		if cfg.UpdateStrategy == services.PayloadStrategy {
-			logStep(fmt.Sprintf("Generating payload for %s %q...", service, resourceID))
-			jsonData, err = client.GeneratePayload(cfg, resourceID)
-		} else {
-			logStep(fmt.Sprintf("Fetching current ACLs for %s %q...", service, resourceID))
-			jsonData, err = client.DescribeInstance(cfg, resourceID)
-		}
-		if err != nil {
-			return err
-		}
-
-		resourceName := acl.ExtractName(jsonData, cfg)
-		resourceLabel := formatResourceLabel(resourceName, resourceID)
-
-		currentACLs, err := acl.ExtractACLs(jsonData, cfg)
+		resourceLabel, currentACLs, jsonData, err := fetchCurrentACLs(client, cfg, service, resourceID)
 		if err != nil {
 			return err
 		}

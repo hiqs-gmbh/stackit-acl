@@ -131,6 +131,18 @@ func logRaw(msg string, args ...any) {
 	slog.Info(msg, append([]any{"kind", "raw"}, args...)...)
 }
 
+func formatACLEntries(entries []string) string {
+	var sb strings.Builder
+	if len(entries) == 0 {
+		sb.WriteString("  (none)\n")
+		return sb.String()
+	}
+	for _, entry := range entries {
+		sb.WriteString("  • " + entry + "\n")
+	}
+	return sb.String()
+}
+
 func formatACLList(current []string, changed string, act action) string {
 	var sb strings.Builder
 	for _, entry := range current {
